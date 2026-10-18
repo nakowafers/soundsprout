@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { LetterCard } from '../src/components/LetterCard';
+import { BlendingWordCard } from '../src/components/BlendingWordCard';
 import { GardenVineShell } from '../src/components/GardenVineShell';
 import { createStubAudioPort, StubAudioPort } from '../src/audio';
 import {
   INITIAL_CURRICULUM_CARDS,
   LetterCardData,
+  BlendingWordCardData,
 } from '../src/domain';
 import { createGardenStateMachine, GardenStateMachine } from '../src/state/gardenStateMachine';
 
@@ -107,7 +109,9 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
   });
 
   describe('LetterCard: Stop Phoneme (/t/) Gesture Physics', () => {
-    const cardDataT: LetterCardData = INITIAL_CURRICULUM_CARDS[3]; // letter 't', stop
+    const cardDataT: LetterCardData = INITIAL_CURRICULUM_CARDS.find(
+      (c): c is LetterCardData => c.id === 'lesson-4-letter-t'
+    )!; // letter 't', stop
 
     it('renders 3 tactile seed pods and articulatory tongue-tap cue', () => {
       const onComplete = vi.fn();
@@ -297,6 +301,259 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
       fireEvent.click(returnBtn);
       expect(stateMachine.getState().activeIndex).toBe(1);
       expect(screen.queryByTestId('return-to-frontier-button')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('BlendingWordCard: Forgiving Hybrid Gesture & Progressive Blending', () => {
+    const cardDataSat: BlendingWordCardData = {
+      id: 'test-blend-sat',
+      lessonNumber: 4,
+      type: 'blending-word',
+      title: 'Blend: sat',
+      word: 'sat',
+      graphemes: ['s', 'a', 't'],
+      illustration: '🪑',
+    };
+
+    it('renders horizontal blending track, slider buddy, and individual grapheme tiles', () => {
+      const onComplete = vi.fn();
+      render(
+        <BlendingWordCard
+          card={cardDataSat}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      expect(screen.getByTestId('blending-word-card')).toBeInTheDocument();
+      expect(screen.getByTestId('blending-track')).toBeInTheDocument();
+      expect(screen.getByTestId('slider-buddy')).toBeInTheDocument();
+
+      expect(screen.getByTestId('grapheme-tile-0')).toHaveTextContent('s');
+      expect(screen.getByTestId('grapheme-tile-1')).toHaveTextContent('a');
+      expect(screen.getByTestId('grapheme-tile-2')).toHaveTextContent('t');
+
+      // Initially illustration is not visible
+      expect(screen.queryByTestId('word-illustration')).not.toBeInTheDocument();
+      // First tile pulses as next expected
+      expect(screen.getByTestId('grapheme-tile-0')).toHaveAttribute('data-pulsing', 'true');
+    });
+
+    it('continuous drag across graphemes voices phonemes in order, voices blended word, reveals illustration, and completes card', () => {
+      const onComplete = vi.fn();
+      render(
+        <BlendingWordCard
+          card={cardDataSat}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const tile0 = screen.getByTestId('grapheme-tile-0');
+      const tile1 = screen.getByTestId('grapheme-tile-1');
+      const tile2 = screen.getByTestId('grapheme-tile-2');
+
+      // 1. Drag starts on tile 0 ('s')
+      fireEvent.pointerDown(tile0);
+      expect(audioPort.playedPhonemes).toEqual(['s']);
+      expect(tile0).toHaveAttribute('data-illuminated', 'true');
+      expect(tile1).toHaveAttribute('data-pulsing', 'true');
+      expect(onComplete).not.toHaveBeenCalled();
+
+      // 2. Drag moves across tile 1 ('a')
+      fireEvent.pointerEnter(tile1);
+      expect(audioPort.playedPhonemes).toEqual(['s', 'ă']);
+      expect(tile1).toHaveAttribute('data-illuminated', 'true');
+      expect(tile2).toHaveAttribute('data-pulsing', 'true');
+      expect(onComplete).not.toHaveBeenCalled();
+
+      // 3. Drag reaches final tile 2 ('t')
+      fireEvent.pointerEnter(tile2);
+      expect(audioPort.playedPhonemes).toEqual(['s', 'ă', 't']);
+      expect(tile2).toHaveAttribute('data-illuminated', 'true');
+
+      // Full blended word voiced
+      expect(audioPort.playedWords).toEqual(['sat']);
+
+      // Illustration revealed and card completes
+      expect(screen.getByTestId('word-illustration')).toBeInTheDocument();
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('motor-forgiving latch & tap: lifting pointer mid-blend latches progress and pulses next grapheme for tap completion', () => {
+      const onComplete = vi.fn();
+      render(
+        <BlendingWordCard
+          card={cardDataSat}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const tile0 = screen.getByTestId('grapheme-tile-0');
+      const tile1 = screen.getByTestId('grapheme-tile-1');
+      const tile2 = screen.getByTestId('grapheme-tile-2');
+
+      // 1. Toddler drags across 's' and 'a'
+      fireEvent.pointerDown(tile0);
+      fireEvent.pointerEnter(tile1);
+      expect(audioPort.playedPhonemes).toEqual(['s', 'ă']);
+
+      // 2. Toddler lifts pointer mid-blend!
+      fireEvent.pointerUp(tile1);
+
+      // Progress is latched: tiles 0 and 1 remain illuminated, not reset to zero!
+      expect(tile0).toHaveAttribute('data-illuminated', 'true');
+      expect(tile1).toHaveAttribute('data-illuminated', 'true');
+      expect(tile2).toHaveAttribute('data-illuminated', 'false');
+
+      // Next grapheme (tile 2) pulses to invite tap
+      expect(tile2).toHaveAttribute('data-pulsing', 'true');
+      expect(onComplete).not.toHaveBeenCalled();
+
+      // 3. Toddler taps the remaining grapheme 't'
+      fireEvent.click(tile2);
+
+      expect(audioPort.playedPhonemes).toEqual(['s', 'ă', 't']);
+      expect(audioPort.playedWords).toEqual(['sat']);
+      expect(screen.getByTestId('word-illustration')).toBeInTheDocument();
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('pure sequential tap completion: tapping graphemes in left-to-right order', () => {
+      const onComplete = vi.fn();
+      render(
+        <BlendingWordCard
+          card={cardDataSat}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const tile0 = screen.getByTestId('grapheme-tile-0');
+      const tile1 = screen.getByTestId('grapheme-tile-1');
+      const tile2 = screen.getByTestId('grapheme-tile-2');
+
+      // Tap 1: 's'
+      fireEvent.click(tile0);
+      expect(audioPort.playedPhonemes).toEqual(['s']);
+      expect(tile0).toHaveAttribute('data-illuminated', 'true');
+      expect(tile1).toHaveAttribute('data-pulsing', 'true');
+      expect(onComplete).not.toHaveBeenCalled();
+
+      // Tap 2: 'a'
+      fireEvent.click(tile1);
+      expect(audioPort.playedPhonemes).toEqual(['s', 'ă']);
+      expect(tile1).toHaveAttribute('data-illuminated', 'true');
+      expect(tile2).toHaveAttribute('data-pulsing', 'true');
+      expect(onComplete).not.toHaveBeenCalled();
+
+      // Tap 3: 't'
+      fireEvent.click(tile2);
+      expect(audioPort.playedPhonemes).toEqual(['s', 'ă', 't']);
+      expect(audioPort.playedWords).toEqual(['sat']);
+      expect(screen.getByTestId('word-illustration')).toBeInTheDocument();
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('out-of-order tap does not advance blend, calls playWobbleHint, and gently pulses next expected grapheme', () => {
+      const onComplete = vi.fn();
+      render(
+        <BlendingWordCard
+          card={cardDataSat}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const tile0 = screen.getByTestId('grapheme-tile-0');
+      const tile1 = screen.getByTestId('grapheme-tile-1');
+      const tile2 = screen.getByTestId('grapheme-tile-2');
+
+      // Toddler taps 's' first
+      fireEvent.click(tile0);
+      expect(audioPort.playedPhonemes).toEqual(['s']);
+
+      // Toddler mistakenly taps 't' (index 2) instead of expected 'a' (index 1)
+      fireEvent.click(tile2);
+
+      // Does NOT advance: playedPhonemes is still just ['s']
+      expect(audioPort.playedPhonemes).toEqual(['s']);
+      expect(audioPort.playedWords).toEqual([]);
+      expect(onComplete).not.toHaveBeenCalled();
+
+      // Calls wobble hint
+      expect(audioPort.wobbleHintCount).toBe(1);
+
+      // Next expected tile 1 remains pulsing
+      expect(tile1).toHaveAttribute('data-pulsing', 'true');
+      expect(tile2).toHaveAttribute('data-illuminated', 'false');
+    });
+  });
+
+  describe('GardenVineShell: BlendingWordCard Integration & Auto-Advance', () => {
+    it('seamlessly renders BlendingWordCard on vine and advances upon word blending completion', () => {
+      const stateMachine = createGardenStateMachine();
+      render(<GardenVineShell stateMachine={stateMachine} audioPort={audioPort} />);
+
+      // Complete Lesson 1: 'a'
+      const touchTargetA = screen.getByTestId('letter-touch-target');
+      fireEvent.pointerDown(touchTargetA);
+      act(() => {
+        vi.advanceTimersByTime(1200);
+      });
+      fireEvent.pointerUp(touchTargetA);
+
+      // Celebration auto-advances
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      // Now at Lesson 2 Letter 'm'
+      expect(screen.getByText('Letter m')).toBeInTheDocument();
+      const touchTargetM = screen.getByTestId('letter-touch-target');
+      fireEvent.pointerDown(touchTargetM);
+      act(() => {
+        vi.advanceTimersByTime(1200);
+      });
+      fireEvent.pointerUp(touchTargetM);
+
+      // Celebration auto-advances to Lesson 2 Blending Word 'am'
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      // Active card is now Blending Word: am
+      expect(screen.getByTestId('blending-word-card')).toBeInTheDocument();
+      expect(screen.getByText('Blend: am')).toBeInTheDocument();
+
+      // Blend 'am': click 'a' then 'm'
+      const tileA = screen.getByTestId('grapheme-tile-0');
+      const tileM = screen.getByTestId('grapheme-tile-1');
+
+      fireEvent.click(tileA);
+      expect(audioPort.playedPhonemes).toContain('ă');
+
+      fireEvent.click(tileM);
+      expect(audioPort.playedWords).toContain('am');
+      expect(audioPort.bloomFanfareCount).toBeGreaterThanOrEqual(3);
+
+      // Celebration lock active
+      expect(stateMachine.getState().isCelebrationLocked).toBe(true);
+
+      // Advance celebration 2000ms
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      expect(stateMachine.getState().isCelebrationLocked).toBe(false);
+      // Next card is Lesson 3 Letter 's'!
+      expect(screen.getByText('Letter s')).toBeInTheDocument();
     });
   });
 });

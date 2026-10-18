@@ -1,5 +1,7 @@
 import {
   ArticulatoryCue,
+  BlendingWordCardData,
+  GardenCard,
   LetterCardData,
   MouthState,
   PhonemeClassification,
@@ -18,6 +20,13 @@ export function getPhonemeClassification(phoneme: string): PhonemeClassification
   }
   // Default to continuous if unlisted or return continuous
   return 'continuous';
+}
+
+export function getGraphemePhoneme(grapheme: string): string {
+  const g = grapheme.toLowerCase();
+  if (g === 'a') return 'ă';
+  if (g === 'i') return 'ĭ';
+  return g;
 }
 
 export const ARTICULATORY_CUES: Record<string, ArticulatoryCue> = {
@@ -65,53 +74,118 @@ export function getArticulatoryCue(phoneme: string): ArticulatoryCue {
   );
 }
 
-export const INITIAL_CURRICULUM_CARDS: LetterCardData[] = [
-  {
-    id: 'lesson-1-letter-a',
-    lessonNumber: 1,
+export function createLetterCard(
+  lessonNumber: number,
+  grapheme: string,
+  phoneme: string,
+  classification: PhonemeClassification,
+  options: {
+    holdDurationMs?: number;
+    seedPodTapsRequired?: number;
+    uppercase?: string;
+  } = {}
+): LetterCardData {
+  return {
+    id: `lesson-${lessonNumber}-letter-${grapheme.toLowerCase()}`,
+    lessonNumber,
     type: 'letter',
-    title: 'Letter a',
-    grapheme: 'a',
-    uppercase: 'A',
-    phoneme: 'ă',
-    phonemeClassification: 'continuous',
-    articulatoryCue: getArticulatoryCue('ă'),
-    holdDurationMs: 1200,
-  },
-  {
-    id: 'lesson-2-letter-m',
-    lessonNumber: 2,
-    type: 'letter',
-    title: 'Letter m',
-    grapheme: 'm',
-    uppercase: 'M',
-    phoneme: 'm',
-    phonemeClassification: 'continuous',
-    articulatoryCue: getArticulatoryCue('m'),
-    holdDurationMs: 1200,
-  },
-  {
-    id: 'lesson-3-letter-s',
-    lessonNumber: 3,
-    type: 'letter',
-    title: 'Letter s',
-    grapheme: 's',
-    uppercase: 'S',
-    phoneme: 's',
-    phonemeClassification: 'continuous',
-    articulatoryCue: getArticulatoryCue('s'),
-    holdDurationMs: 1200,
-  },
-  {
-    id: 'lesson-4-letter-t',
-    lessonNumber: 4,
-    type: 'letter',
-    title: 'Letter t',
-    grapheme: 't',
-    uppercase: 'T',
-    phoneme: 't',
-    phonemeClassification: 'stop',
-    articulatoryCue: getArticulatoryCue('t'),
-    seedPodTapsRequired: 3,
-  },
+    title: `Letter ${grapheme}`,
+    grapheme,
+    uppercase: options.uppercase ?? grapheme.toUpperCase(),
+    phoneme,
+    phonemeClassification: classification,
+    articulatoryCue: getArticulatoryCue(phoneme),
+    holdDurationMs:
+      classification === 'continuous' ? (options.holdDurationMs ?? 1200) : undefined,
+    seedPodTapsRequired:
+      classification === 'stop' ? (options.seedPodTapsRequired ?? 3) : undefined,
+  };
+}
+
+export function createBlendingWordCard(
+  lessonNumber: number,
+  word: string,
+  graphemes: string[],
+  illustration?: string
+): BlendingWordCardData {
+  return {
+    id: `lesson-${lessonNumber}-blend-${word.toLowerCase()}`,
+    lessonNumber,
+    type: 'blending-word',
+    title: `Blend: ${word}`,
+    word,
+    graphemes,
+    illustration,
+  };
+}
+
+export const INITIAL_CURRICULUM_CARDS: GardenCard[] = [
+  // Lesson 1: a /ă/ (Continuous — omits Blending Word cards)
+  createLetterCard(1, 'a', 'ă', 'continuous'),
+
+  // Lesson 2: m /m/ (Continuous — blends am)
+  createLetterCard(2, 'm', 'm', 'continuous'),
+  createBlendingWordCard(2, 'am', ['a', 'm'], '🌟'),
+
+  // Lesson 3: s /s/ (Continuous — blends Sam, am)
+  createLetterCard(3, 's', 's', 'continuous'),
+  createBlendingWordCard(3, 'Sam', ['S', 'a', 'm'], '👦'),
+  createBlendingWordCard(3, 'am', ['a', 'm'], '🌟'),
+
+  // Lesson 4: t /t/ (Stop — blends at, sat, mat)
+  createLetterCard(4, 't', 't', 'stop'),
+  createBlendingWordCard(4, 'at', ['a', 't'], '📍'),
+  createBlendingWordCard(4, 'sat', ['s', 'a', 't'], '🪑'),
+  createBlendingWordCard(4, 'mat', ['m', 'a', 't'], '🧶'),
+
+  // Lesson 5: VC/CVC Consolidation (a, m, s, t — omits Letter Card, multi-word blending)
+  createBlendingWordCard(5, 'at', ['a', 't'], '📍'),
+  createBlendingWordCard(5, 'am', ['a', 'm'], '🌟'),
+  createBlendingWordCard(5, 'sat', ['s', 'a', 't'], '🪑'),
+  createBlendingWordCard(5, 'mat', ['m', 'a', 't'], '🧶'),
+  createBlendingWordCard(5, 'Sam', ['S', 'a', 'm'], '👦'),
+
+  // Lesson 6: p /p/ (Stop — blends pat, tap, sap, map)
+  createLetterCard(6, 'p', 'p', 'stop'),
+  createBlendingWordCard(6, 'pat', ['p', 'a', 't'], '👋'),
+  createBlendingWordCard(6, 'tap', ['t', 'a', 'p'], '🚰'),
+  createBlendingWordCard(6, 'sap', ['s', 'a', 'p'], '🍁'),
+  createBlendingWordCard(6, 'map', ['m', 'a', 'p'], '🗺️'),
+
+  // Lesson 7: f /f/ (Continuous — blends fat)
+  createLetterCard(7, 'f', 'f', 'continuous'),
+  createBlendingWordCard(7, 'fat', ['f', 'a', 't'], '🐱'),
+
+  // Lesson 8: i /ĭ/ (Continuous — blends it, sit, pit, fit, sip, tip)
+  createLetterCard(8, 'i', 'ĭ', 'continuous'),
+  createBlendingWordCard(8, 'it', ['i', 't'], '👉'),
+  createBlendingWordCard(8, 'sit', ['s', 'i', 't'], '🪑'),
+  createBlendingWordCard(8, 'pit', ['p', 'i', 't'], '🕳️'),
+  createBlendingWordCard(8, 'fit', ['f', 'i', 't'], '🧩'),
+  createBlendingWordCard(8, 'sip', ['s', 'i', 'p'], '🥤'),
+  createBlendingWordCard(8, 'tip', ['t', 'i', 'p'], '💡'),
+
+  // Lesson 9: n /n/ (Continuous — blends in, pin, tin, fin, nap, pan, tan, man, fan)
+  createLetterCard(9, 'n', 'n', 'continuous'),
+  createBlendingWordCard(9, 'in', ['i', 'n'], '📥'),
+  createBlendingWordCard(9, 'pin', ['p', 'i', 'n'], '📌'),
+  createBlendingWordCard(9, 'tin', ['t', 'i', 'n'], '🥫'),
+  createBlendingWordCard(9, 'fin', ['f', 'i', 'n'], '🦈'),
+  createBlendingWordCard(9, 'nap', ['n', 'a', 'p'], '😴'),
+  createBlendingWordCard(9, 'pan', ['p', 'a', 'n'], '🍳'),
+  createBlendingWordCard(9, 'tan', ['t', 'a', 'n'], '☀️'),
+  createBlendingWordCard(9, 'man', ['m', 'a', 'n'], '👨'),
+  createBlendingWordCard(9, 'fan', ['f', 'a', 'n'], '🪭'),
+
+  // Lesson 10: CVC Consolidation (a, i with m, s, t, p, f, n — omits Letter Card, multi-word blending)
+  createBlendingWordCard(10, 'fit', ['f', 'i', 't'], '🧩'),
+  createBlendingWordCard(10, 'map', ['m', 'a', 'p'], '🗺️'),
+  createBlendingWordCard(10, 'pin', ['p', 'i', 'n'], '📌'),
+  createBlendingWordCard(10, 'tap', ['t', 'a', 'p'], '🚰'),
+  createBlendingWordCard(10, 'sit', ['s', 'i', 't'], '🪑'),
+  createBlendingWordCard(10, 'pan', ['p', 'a', 'n'], '🍳'),
+  createBlendingWordCard(10, 'fan', ['f', 'a', 'n'], '🪭'),
+  createBlendingWordCard(10, 'tin', ['t', 'i', 'n'], '🥫'),
+  createBlendingWordCard(10, 'mat', ['m', 'a', 't'], '🧶'),
+  createBlendingWordCard(10, 'pat', ['p', 'a', 't'], '👋'),
 ];
