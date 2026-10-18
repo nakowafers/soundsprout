@@ -180,4 +180,101 @@ describe('Seam 1 — Pure UFLI Curriculum & Garden State Machine Seam', () => {
       expect(listener.mock.calls.length).toBe(callCount);
     });
   });
+
+  describe('Milestone Blossom Checkpoints & Curriculum Boundaries', () => {
+    it('places Milestone Blossom checkpoint cards after Lessons 4, 5, 8, and 10', () => {
+      const machine = createGardenStateMachine();
+      const cards = machine.getState().cards;
+
+      const milestoneCards = cards.filter((c) => c.type === 'milestone-blossom');
+      expect(milestoneCards).toHaveLength(4);
+
+      // Lesson 4 checkpoint: Sunburst Daisy & Ladybug Lou
+      const m4 = milestoneCards.find((c) => c.lessonNumber === 4);
+      expect(m4).toBeDefined();
+      expect(m4).toMatchObject({
+        type: 'milestone-blossom',
+        blossomName: 'Sunburst Daisy',
+        critterName: 'Ladybug Lou',
+      });
+
+      // Lesson 5 checkpoint: Dewdrop Tulip & Pip the Caterpillar
+      const m5 = milestoneCards.find((c) => c.lessonNumber === 5);
+      expect(m5).toBeDefined();
+      expect(m5).toMatchObject({
+        type: 'milestone-blossom',
+        blossomName: 'Dewdrop Tulip',
+        critterName: 'Pip the Caterpillar',
+      });
+
+      // Lesson 8 checkpoint: Berry Blossom & Sunny the Honeybee
+      const m8 = milestoneCards.find((c) => c.lessonNumber === 8);
+      expect(m8).toBeDefined();
+      expect(m8).toMatchObject({
+        type: 'milestone-blossom',
+        blossomName: 'Berry Blossom',
+        critterName: 'Sunny the Honeybee',
+      });
+
+      // Lesson 10 checkpoint: Golden Sunflower & Flutter the Butterfly
+      const m10 = milestoneCards.find((c) => c.lessonNumber === 10);
+      expect(m10).toBeDefined();
+      expect(m10).toMatchObject({
+        type: 'milestone-blossom',
+        blossomName: 'Golden Sunflower',
+        critterName: 'Flutter the Butterfly',
+      });
+    });
+  });
+
+  describe('Milestone Blossom & Garden Critter Unlocks & Persistence', () => {
+    it('completing a Milestone Blossom card unlocks flower and critter in session state and persists to storage', () => {
+      const mockStorage: Record<string, string> = {};
+      const storageAdapter = {
+        getItem: (k: string) => mockStorage[k] ?? null,
+        setItem: (k: string, v: string) => {
+          mockStorage[k] = v;
+        },
+        removeItem: (k: string) => {
+          delete mockStorage[k];
+        },
+        clear: () => {
+          for (const key of Object.keys(mockStorage)) delete mockStorage[key];
+        },
+        length: 0,
+        key: () => null,
+      };
+
+      const machine = createGardenStateMachine({ storage: storageAdapter });
+      const cards = machine.getState().cards;
+      const m4Index = cards.findIndex((c) => c.type === 'milestone-blossom' && c.lessonNumber === 4);
+      expect(m4Index).toBeGreaterThan(-1);
+
+      // Advance machine to m4Index
+      for (let i = 0; i < m4Index; i++) {
+        machine.completeActiveCard();
+        machine.finishCelebration();
+      }
+
+      expect(machine.getState().frontierIndex).toBe(m4Index);
+      expect(machine.getState().activeIndex).toBe(m4Index);
+      expect(machine.getState().unlockedBlossoms).not.toContain('Sunburst Daisy');
+      expect(machine.getState().unlockedCritters).not.toContain('Ladybug Lou');
+
+      // Complete Milestone Blossom card at frontier
+      const result = machine.completeActiveCard();
+      expect(result.isAutoAdvancing).toBe(true);
+
+      const state = machine.getState();
+      expect(state.unlockedBlossoms).toContain('Sunburst Daisy');
+      expect(state.unlockedCritters).toContain('Ladybug Lou');
+
+      machine.finishCelebration();
+
+      // Hydrate a second machine from storage and verify unlocks persist
+      const machine2 = createGardenStateMachine({ storage: storageAdapter });
+      expect(machine2.getState().unlockedBlossoms).toEqual(['Sunburst Daisy']);
+      expect(machine2.getState().unlockedCritters).toEqual(['Ladybug Lou']);
+    });
+  });
 });
