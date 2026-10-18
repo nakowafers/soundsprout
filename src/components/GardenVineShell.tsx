@@ -4,10 +4,13 @@ import { AudioPort } from '../audio/audioPort';
 import {
   GardenSessionState,
   LetterCardData,
+  MilestoneBlossomCardData,
   BlendingWordCardData,
   BubblePopCardData,
 } from '../domain/types';
 import { LetterCard } from './LetterCard';
+import { MilestoneBlossomCard } from './MilestoneBlossomCard';
+import { GreenhouseDrawer } from './GreenhouseDrawer';
 import { BlendingWordCard } from './BlendingWordCard';
 import { PhonemeBubblePopCard } from './PhonemeBubblePopCard';
 import { ReturnToFrontierPill } from './ReturnToFrontierPill';
@@ -26,6 +29,7 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
     stateMachine.getState()
   );
   const [isBouncing, setIsBouncing] = useState(false);
+  const [isGreenhouseOpen, setIsGreenhouseOpen] = useState(false);
   const bounceTimerRef = useRef<number | null>(null);
   const celebrationTimerRef = useRef<number | null>(null);
 
@@ -166,6 +170,48 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Greenhouse Drawer Toggle with Unlocked-Critter Counter Badge */}
+          <button
+            type="button"
+            data-testid="greenhouse-drawer-toggle"
+            aria-label="Open Greenhouse Terrarium"
+            onClick={() => setIsGreenhouseOpen((prev) => !prev)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: '#E8F5E9',
+              border: '2px solid #81C784',
+              borderRadius: '20px',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 800,
+              color: '#2E7D32',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+              outline: 'none',
+              minHeight: '44px',
+            }}
+          >
+            <span style={{ fontSize: '18px' }}>🏡</span>
+            <span>Terrarium</span>
+            <span
+              data-testid="greenhouse-critter-count"
+              style={{
+                backgroundColor: '#43A047',
+                color: '#FFFFFF',
+                borderRadius: '12px',
+                padding: '2px 8px',
+                fontSize: '12px',
+                fontWeight: 800,
+                minWidth: '20px',
+                textAlign: 'center',
+              }}
+            >
+              {sessionState.unlockedCritters.length}
+            </span>
+          </button>
+
           <span
             style={{
               fontSize: '14px',
@@ -213,6 +259,7 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
         >
           {activeCard && activeCard.type === 'letter' && (
             <LetterCard
+              key={activeCard.id}
               card={activeCard as LetterCardData}
               audioPort={audioPort}
               onComplete={handleCardComplete}
@@ -221,6 +268,7 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
           )}
           {activeCard && activeCard.type === 'blending-word' && (
             <BlendingWordCard
+              key={activeCard.id}
               card={activeCard as BlendingWordCardData}
               audioPort={audioPort}
               onComplete={handleCardComplete}
@@ -229,7 +277,17 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
           )}
           {activeCard && activeCard.type === 'bubble-pop' && (
             <PhonemeBubblePopCard
+              key={activeCard.id}
               card={activeCard as BubblePopCardData}
+              audioPort={audioPort}
+              onComplete={handleCardComplete}
+              isCompleted={isCurrentCardCompleted}
+            />
+          )}
+          {activeCard && activeCard.type === 'milestone-blossom' && (
+            <MilestoneBlossomCard
+              key={activeCard.id}
+              card={activeCard as MilestoneBlossomCardData}
               audioPort={audioPort}
               onComplete={handleCardComplete}
               isCompleted={isCurrentCardCompleted}
@@ -248,6 +306,15 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
 
       {/* Locked Celebration Auto-Advance Overlay */}
       {sessionState.isCelebrationLocked && <CelebrationOverlay />}
+
+      {/* Greenhouse Drawer Terrarium */}
+      <GreenhouseDrawer
+        isOpen={isGreenhouseOpen}
+        onClose={() => setIsGreenhouseOpen(false)}
+        unlockedBlossoms={sessionState.unlockedBlossoms}
+        unlockedCritters={sessionState.unlockedCritters}
+        audioPort={audioPort}
+      />
     </div>
   );
 };

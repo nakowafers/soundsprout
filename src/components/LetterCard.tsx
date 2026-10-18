@@ -31,18 +31,21 @@ export const LetterCard: React.FC<LetterCardProps> = ({
   const completedRef = useRef(isCompleted);
 
   // Stop Phoneme Pods State
-  const [poppedPods, setPoppedPods] = useState<boolean[]>(
+  const poppedPodsRef = useRef<boolean[]>(
     isCompleted
       ? Array(totalPodsRequired).fill(true)
       : Array(totalPodsRequired).fill(false)
   );
+  const [poppedPods, setPoppedPods] = useState<boolean[]>(poppedPodsRef.current);
 
   useEffect(() => {
     completedRef.current = isCompleted;
     if (isCompleted) {
       accumulatedRef.current = totalHoldMs;
       setAccumulatedHoldMs(totalHoldMs);
-      setPoppedPods(Array(totalPodsRequired).fill(true));
+      const allTrue = Array(totalPodsRequired).fill(true);
+      poppedPodsRef.current = allTrue;
+      setPoppedPods(allTrue);
     }
   }, [isCompleted, totalHoldMs, totalPodsRequired]);
 
@@ -104,22 +107,22 @@ export const LetterCard: React.FC<LetterCardProps> = ({
   // Handle Stop Phoneme Pod Tap
   const handlePodTap = useCallback(
     (index: number) => {
-      if (completedRef.current || poppedPods[index]) return;
+      if (completedRef.current || poppedPodsRef.current[index]) return;
 
       audioPort.playPhoneme(card.phoneme);
       audioPort.playPop();
 
-      const newPopped = [...poppedPods];
+      const newPopped = [...poppedPodsRef.current];
       newPopped[index] = true;
+      poppedPodsRef.current = newPopped;
       setPoppedPods(newPopped);
 
-      const allPopped = newPopped.every(Boolean);
-      if (allPopped) {
+      if (newPopped.every(Boolean)) {
         completedRef.current = true;
         onComplete();
       }
     },
-    [card.phoneme, poppedPods, audioPort, onComplete]
+    [card.phoneme, audioPort, onComplete]
   );
 
   const holdProgressFraction = Math.min(1, accumulatedHoldMs / totalHoldMs);

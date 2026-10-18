@@ -1,4 +1,4 @@
-import { GardenCard, GardenSessionState } from '../domain/types';
+import { GardenCard, GardenSessionState, MilestoneBlossomCardData } from '../domain/types';
 import { INITIAL_CURRICULUM_CARDS } from '../domain/curriculum';
 
 export const STORAGE_KEY = 'soundsprout_garden_session_v1';
@@ -124,6 +124,18 @@ export function createGardenStateMachine(
         return { isAutoAdvancing: false, isEncore: false };
       }
 
+      let unlockedBlossoms = state.unlockedBlossoms;
+      let unlockedCritters = state.unlockedCritters;
+      if (activeCard.type === 'milestone-blossom') {
+        const blossomCard = activeCard as MilestoneBlossomCardData;
+        if (!unlockedBlossoms.includes(blossomCard.blossomName)) {
+          unlockedBlossoms = [...unlockedBlossoms, blossomCard.blossomName];
+        }
+        if (!unlockedCritters.includes(blossomCard.critterName)) {
+          unlockedCritters = [...unlockedCritters, blossomCard.critterName];
+        }
+      }
+
       if (state.activeIndex === state.frontierIndex) {
         const completed = state.completedCardIds.includes(activeCard.id)
           ? state.completedCardIds
@@ -132,6 +144,8 @@ export function createGardenStateMachine(
         state = {
           ...state,
           completedCardIds: completed,
+          unlockedBlossoms,
+          unlockedCritters,
           isCelebrationLocked: true,
         };
         persist();
@@ -139,6 +153,12 @@ export function createGardenStateMachine(
         return { isAutoAdvancing: true, isEncore: false };
       } else {
         // Replay of an already bloomed card in-place
+        state = {
+          ...state,
+          unlockedBlossoms,
+          unlockedCritters,
+        };
+        persist();
         emit();
         return { isAutoAdvancing: false, isEncore: true };
       }

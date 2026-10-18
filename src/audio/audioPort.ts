@@ -7,6 +7,7 @@ export interface AudioPort {
   playWaterDrop(): void;
   playWobbleHint(): void;
   playBloomFanfare(): void;
+  playChime(): void;
   setMuted(muted: boolean): void;
   isMuted(): boolean;
 }

@@ -4,6 +4,7 @@ import {
   BubblePopCardData,
   GardenCard,
   LetterCardData,
+  MilestoneBlossomCardData,
   MouthState,
   PhonemeClassification,
 } from './types';
@@ -74,6 +75,50 @@ export function getArticulatoryCue(phoneme: string): ArticulatoryCue {
     }
   );
 }
+
+export interface MilestoneBlossomDef {
+  lessonNumber: number;
+  blossomName: string;
+  critterName: string;
+  blossomEmoji: string;
+  critterEmoji: string;
+  description: string;
+}
+
+export const MILESTONE_DEFINITIONS: MilestoneBlossomDef[] = [
+  {
+    lessonNumber: 4,
+    blossomName: 'Sunburst Daisy',
+    critterName: 'Ladybug Lou',
+    blossomEmoji: '🌼',
+    critterEmoji: '🐞',
+    description: 'A radiant yellow daisy with Ladybug Lou!',
+  },
+  {
+    lessonNumber: 5,
+    blossomName: 'Dewdrop Tulip',
+    critterName: 'Pip the Caterpillar',
+    blossomEmoji: '🌷',
+    critterEmoji: '🐛',
+    description: 'A gentle pink tulip with Pip the Caterpillar!',
+  },
+  {
+    lessonNumber: 8,
+    blossomName: 'Berry Blossom',
+    critterName: 'Sunny the Honeybee',
+    blossomEmoji: '🌸',
+    critterEmoji: '🐝',
+    description: 'A sweet berry blossom with Sunny the Honeybee!',
+  },
+  {
+    lessonNumber: 10,
+    blossomName: 'Golden Sunflower',
+    critterName: 'Flutter the Butterfly',
+    blossomEmoji: '🌻',
+    critterEmoji: '🦋',
+    description: 'A majestic golden sunflower with Flutter the Butterfly!',
+  },
+];
 
 export function createLetterCard(
   lessonNumber: number,
@@ -377,6 +422,28 @@ export const BLENDING_WORD_CARDS: Record<number, BlendingWordCardData[]> = {
   ],
 };
 
+export function createMilestoneBlossomCard(
+  lessonNumber: number,
+  blossomName: string,
+  critterName: string
+): MilestoneBlossomCardData {
+  return {
+    id: `lesson-${lessonNumber}-milestone`,
+    lessonNumber,
+    type: 'milestone-blossom',
+    title: `${blossomName} & ${critterName}`,
+    blossomName,
+    critterName,
+  };
+}
+
+export const MILESTONE_CARDS: Record<number, MilestoneBlossomCardData> = {
+  4: createMilestoneBlossomCard(4, 'Sunburst Daisy', 'Ladybug Lou'),
+  5: createMilestoneBlossomCard(5, 'Dewdrop Tulip', 'Pip the Caterpillar'),
+  8: createMilestoneBlossomCard(8, 'Berry Blossom', 'Sunny the Honeybee'),
+  10: createMilestoneBlossomCard(10, 'Golden Sunflower', 'Flutter the Butterfly'),
+};
+
 export function generateLessonCycle(lessonNumber: number): GardenCard[] {
   const cards: GardenCard[] = [];
   const letterCard = LETTER_CARDS[lessonNumber];
@@ -390,6 +457,10 @@ export function generateLessonCycle(lessonNumber: number): GardenCard[] {
   const blendingCards = BLENDING_WORD_CARDS[lessonNumber];
   if (blendingCards) {
     cards.push(...blendingCards);
+  }
+  const milestoneCard = MILESTONE_CARDS[lessonNumber];
+  if (milestoneCard) {
+    cards.push(milestoneCard);
   }
   return cards;
 }
@@ -406,3 +477,4 @@ export const INITIAL_CURRICULUM_CARDS: GardenCard[] = [
   ...generateLessonCycle(9),
   ...generateLessonCycle(10),
 ];
+

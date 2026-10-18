@@ -130,6 +130,33 @@ export class WebAudioPort implements AudioPort {
     });
   }
 
+  playChime(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    // Joyful sparkling bell chime: high pleasant notes E6, G6, B6, E7
+    const freqs = [1318.51, 1567.98, 1975.53, 2637.02];
+    const now = ctx.currentTime;
+
+    freqs.forEach((freq, idx) => {
+      const startTime = now + idx * 0.05;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0.2, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.3);
+    });
+  }
+
   playPhoneme(phoneme: string): void {
     if (this._muted) return;
     const normalized = phoneme.replace(/[/]/g, '').toLowerCase();

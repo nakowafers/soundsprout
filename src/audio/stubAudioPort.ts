@@ -18,6 +18,7 @@ export class StubAudioPort implements AudioPort {
   public waterDropCount = 0;
   public wobbleHintCount = 0;
   public bloomFanfareCount = 0;
+  public chimeCount = 0;
 
   private record(method: keyof AudioPort, ...args: any[]) {
     this.calls.push({ method, args, timestamp: Date.now() });
@@ -79,6 +80,13 @@ export class StubAudioPort implements AudioPort {
     }
   }
 
+  playChime(): void {
+    this.record('playChime');
+    if (!this._muted) {
+      this.chimeCount++;
+    }
+  }
+
   setMuted(muted: boolean): void {
     this._muted = muted;
     this.record('setMuted', muted);
@@ -98,6 +106,7 @@ export class StubAudioPort implements AudioPort {
     this.waterDropCount = 0;
     this.wobbleHintCount = 0;
     this.bloomFanfareCount = 0;
+    this.chimeCount = 0;
     this._muted = false;
   }
 }
