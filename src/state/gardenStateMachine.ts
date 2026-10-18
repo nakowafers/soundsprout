@@ -35,10 +35,45 @@ function resolveStorage(storageProp?: Storage): Storage | undefined {
   return undefined;
 }
 
-function appendMasteryBatch(currentCards: GardenCard[]): GardenCard[] {
-  const currentCount = Math.floor(
-    currentCards.filter((c) => c.id.startsWith('mastery-batch-')).length / 4
+export type LessonStatus = 'completed' | 'in-progress' | 'not-started';
+
+export function getMasteryBatchCount(cards: GardenCard[]): number {
+  return Math.floor(
+    cards.filter((c) => c.id.startsWith('mastery-batch-')).length / 4
   );
+}
+
+export function getLessonStatus(
+  state: GardenSessionState,
+  lessonNumber: number
+): LessonStatus {
+  const lessonCards = state.cards.filter(
+    (c) => c.lessonNumber === lessonNumber && !c.id.startsWith('mastery-batch-')
+  );
+  if (lessonCards.length === 0) return 'not-started';
+
+  const isComplete = lessonCards.every((c) =>
+    state.completedCardIds.includes(c.id)
+  );
+  if (isComplete) return 'completed';
+
+  const firstIdx = state.cards.findIndex((c) => c.id === lessonCards[0].id);
+  const lastIdx = firstIdx + lessonCards.length - 1;
+
+  if (state.frontierIndex >= firstIdx && state.frontierIndex <= lastIdx) {
+    return 'in-progress';
+  }
+
+  if (state.frontierIndex > lastIdx) {
+    const anyDone = lessonCards.some((c) => state.completedCardIds.includes(c.id));
+    return anyDone ? 'in-progress' : 'not-started';
+  }
+
+  return 'not-started';
+}
+
+function appendMasteryBatch(currentCards: GardenCard[]): GardenCard[] {
+  const currentCount = getMasteryBatchCount(currentCards);
   const nextBatch = generateMasteryBatch(currentCount + 1);
   return [...currentCards, ...nextBatch];
 }
@@ -108,9 +143,7 @@ export function createGardenStateMachine(
   function persist() {
     if (!storage) return;
     try {
-      const masteryBatchCount = Math.floor(
-        state.cards.filter((c) => c.id.startsWith('mastery-batch-')).length / 4
-      );
+      const masteryBatchCount = getMasteryBatchCount(state.cards);
       const toSave: PersistedState = {
         frontierIndex: state.frontierIndex,
         completedCardIds: state.completedCardIds,

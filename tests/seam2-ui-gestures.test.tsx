@@ -11,9 +11,10 @@ import { DecodableStoryCard } from '../src/components/DecodableStoryCard';
 import { GardenVineShell } from '../src/components/GardenVineShell';
 import { ParentGateButton } from '../src/components/ParentGateButton';
 import { EducatorModal } from '../src/components/EducatorModal';
-import { createStubAudioPort, StubAudioPort } from '../src/audio';
+import { createStubAudioPort, StubAudioPort, WebAudioPort } from '../src/audio';
 import {
   INITIAL_CURRICULUM_CARDS,
+  MILESTONE_DEFINITIONS,
   LetterCardData,
   MilestoneBlossomCardData,
   BlendingWordCardData,
@@ -178,6 +179,24 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
       expect(audioPort.playedPhonemes).toEqual(['t', 't', 't']);
       expect(audioPort.popCount).toBe(3);
       expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('dynamically renders stop prompt matching phoneme for /p/ (Pop all 3 seed pods: /p/ /p/ /p/!)', () => {
+      const cardDataP: LetterCardData = INITIAL_CURRICULUM_CARDS.find(
+        (c): c is LetterCardData => c.id === 'lesson-6-letter-p'
+      )!;
+      const onComplete = vi.fn();
+      render(
+        <LetterCard
+          card={cardDataP}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      expect(screen.getByText('Pop all 3 seed pods: /p/ /p/ /p/!')).toBeInTheDocument();
+      expect(screen.queryByText(/Pop all 3 seed pods: \/t\/ \/t\/ \/t\/!/)).not.toBeInTheDocument();
     });
   });
 
@@ -381,12 +400,17 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
       // Still clamped at frontierIndex 0
       expect(stateMachine.getState().activeIndex).toBe(0);
       expect(vineViewport).toHaveAttribute('data-bouncing', 'true');
+      const activeCardContainer = screen.getByTestId('active-card-container');
+      expect(activeCardContainer).toHaveAttribute('data-prompt-pulsing', 'true');
+      expect(activeCardContainer).toHaveClass('prompt-pulse-active');
 
       // Bounce clears after animation timer
       act(() => {
         vi.advanceTimersByTime(400);
       });
       expect(vineViewport).toHaveAttribute('data-bouncing', 'false');
+      expect(activeCardContainer).toHaveAttribute('data-prompt-pulsing', 'false');
+      expect(activeCardContainer).not.toHaveClass('prompt-pulse-active');
     });
 
     it('completing card at Vine Frontier triggers locked celebration for 2,000ms then auto-advances', () => {
@@ -517,11 +541,11 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
         vi.advanceTimersByTime(2000);
       });
 
-      // Unlocks and advances to card 2 (Lesson 2 Letter m)
+      // Unlocks and advances to card 2 (Lesson 1 Letter a Reinforcement)
       expect(stateMachineWithProgress.getState().isCelebrationLocked).toBe(false);
       expect(stateMachineWithProgress.getState().frontierIndex).toBe(2);
       expect(stateMachineWithProgress.getState().activeIndex).toBe(2);
-      expect(screen.getByText('Letter m')).toBeInTheDocument();
+      expect(screen.getByText(/Letter a/i)).toBeInTheDocument();
     });
   });
 
@@ -889,6 +913,27 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
       fireEvent.click(targetBubblesA[0]);
       fireEvent.click(targetBubblesA[1]);
       fireEvent.click(targetBubblesA[2]);
+
+      // Celebration auto-advances to Lesson 1 Letter 'a' (Reinforcement)
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      const touchTargetAReinf = screen.getByTestId('letter-touch-target');
+      fireEvent.pointerDown(touchTargetAReinf);
+      act(() => {
+        vi.advanceTimersByTime(1200);
+      });
+      fireEvent.pointerUp(touchTargetAReinf);
+
+      // Celebration auto-advances to Lesson 1 Heart Word 'the'
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.getByText(/Heart Word: the/i)).toBeInTheDocument();
+
+      // Complete Heart Word 'the' (tap parts: 'th' and 'e')
+      fireEvent.click(screen.getByTestId('heart-part-0'));
+      fireEvent.click(screen.getByTestId('heart-part-1'));
 
       // Celebration auto-advances to Lesson 2 Letter 'm'
       act(() => {
@@ -1564,6 +1609,34 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
       expect(audioPort.isMuted()).toBe(false);
     });
 
+    it('toggles voice cadence setting (Normal 1.0x vs Slow & Clear 0.8x) via voice-cadence-toggle button', () => {
+      const stateMachine = createGardenStateMachine();
+      const onClose = vi.fn();
+
+      render(
+        <EducatorModal
+          isOpen={true}
+          onClose={onClose}
+          stateMachine={stateMachine}
+          audioPort={audioPort}
+        />
+      );
+
+      const voiceBtn = screen.getByTestId('voice-cadence-toggle');
+      expect(voiceBtn).toBeInTheDocument();
+      expect(voiceBtn).toHaveTextContent(/Slow & Clear/i);
+
+      // Toggle to Normal (1.0x)
+      fireEvent.click(voiceBtn);
+      expect(audioPort.getSpeechRate()).toBe(1.0);
+      expect(voiceBtn).toHaveTextContent(/Normal/i);
+
+      // Toggle back to Slow & Clear (0.8x)
+      fireEvent.click(voiceBtn);
+      expect(audioPort.getSpeechRate()).toBe(0.8);
+      expect(voiceBtn).toHaveTextContent(/Slow & Clear/i);
+    });
+
     it('resets garden progress to Lesson 1 via reset button', () => {
       const stateMachine = createGardenStateMachine();
       stateMachine.jumpToLesson(5);
@@ -1623,6 +1696,114 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
       expect(screen.queryByTestId('educator-modal')).not.toBeInTheDocument();
       expect(screen.getByText(/Lesson 6/i)).toBeInTheDocument();
       expect(stateMachine.getState().cards[stateMachine.getState().activeIndex].lessonNumber).toBe(6);
+    });
+  });
+
+  describe('WebAudioPort: Continuous Phoneme /f/ Synthesis & Speech Rate Calibration', () => {
+    it('synthesizes unvoiced labiodental fricative noise for /f/ via bandpass filter at ~2100Hz', () => {
+      let filterFreq = 0;
+      let filterType = '';
+      let bufferSourceCreated = false;
+
+      const mockCtx = {
+        currentTime: 0,
+        sampleRate: 44100,
+        state: 'running',
+        createBuffer: vi.fn(() => ({
+          getChannelData: vi.fn(() => new Float32Array(100)),
+        })),
+        createBufferSource: vi.fn(() => {
+          bufferSourceCreated = true;
+          return {
+            connect: vi.fn(),
+            start: vi.fn(),
+            stop: vi.fn(),
+            buffer: null,
+            loop: false,
+          };
+        }),
+        createBiquadFilter: vi.fn(() => ({
+          set type(val: string) {
+            filterType = val;
+          },
+          get type() {
+            return filterType;
+          },
+          frequency: {
+            setValueAtTime: vi.fn((f) => {
+              filterFreq = f;
+            }),
+          },
+          Q: { setValueAtTime: vi.fn() },
+          connect: vi.fn(),
+        })),
+        createGain: vi.fn(() => ({
+          gain: {
+            value: 0.18,
+            setValueAtTime: vi.fn(),
+            linearRampToValueAtTime: vi.fn(),
+          },
+          connect: vi.fn(),
+        })),
+        destination: {},
+      };
+
+      (window as any).AudioContext = vi.fn(() => mockCtx);
+
+      const port = new WebAudioPort();
+      port.startContinuousPhoneme('f');
+
+      expect(bufferSourceCreated).toBe(true);
+      expect(mockCtx.createBiquadFilter).toHaveBeenCalled();
+      expect(filterFreq).toBe(2100);
+      expect(filterType).toBe('bandpass');
+
+      // Stops gracefully
+      port.stopContinuousPhoneme();
+    });
+
+    it('manages speechRate configuration for voice cadence adjustment', () => {
+      const port = new WebAudioPort();
+      expect(port.getSpeechRate()).toBe(0.85);
+
+      port.setSpeechRate(1.0);
+      expect(port.getSpeechRate()).toBe(1.0);
+
+      port.setSpeechRate(0.8);
+      expect(port.getSpeechRate()).toBe(0.8);
+    });
+  });
+
+  describe('MilestoneBlossomCard: MILESTONE_DEFINITIONS Integration', () => {
+    it('dynamically resolves flower and critter emojis from MILESTONE_DEFINITIONS for all 4 checkpoints', () => {
+      for (const def of MILESTONE_DEFINITIONS) {
+        const blossomCard: MilestoneBlossomCardData = {
+          id: `lesson-${def.lessonNumber}-milestone`,
+          lessonNumber: def.lessonNumber,
+          type: 'milestone-blossom',
+          title: `${def.blossomName} & ${def.critterName}`,
+          blossomName: def.blossomName,
+          critterName: def.critterName,
+        };
+
+        const onComplete = vi.fn();
+        const { unmount } = render(
+          <MilestoneBlossomCard
+            card={blossomCard}
+            audioPort={audioPort}
+            onComplete={onComplete}
+            isCompleted={true}
+          />
+        );
+
+        const flowerEl = screen.getByTestId('milestone-flower');
+        expect(flowerEl).toHaveTextContent(def.blossomEmoji);
+
+        const critterEl = screen.getByTestId('milestone-critter');
+        expect(critterEl).toHaveTextContent(def.critterEmoji);
+
+        unmount();
+      }
     });
   });
 });

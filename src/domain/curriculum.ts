@@ -14,8 +14,12 @@ import {
 export const CONTINUOUS_PHONEMES = new Set(['ă', 'm', 's', 'f', 'ĭ', 'n']);
 export const STOP_PHONEMES = new Set(['t', 'p']);
 
+export function normalizePhoneme(phoneme: string): string {
+  return phoneme.replace(/[/]/g, '').toLowerCase();
+}
+
 export function getPhonemeClassification(phoneme: string): PhonemeClassification {
-  const normalized = phoneme.replace(/[/]/g, '');
+  const normalized = normalizePhoneme(phoneme);
   if (STOP_PHONEMES.has(normalized)) {
     return 'stop';
   }
@@ -69,7 +73,7 @@ export const ARTICULATORY_CUES: Record<string, ArticulatoryCue> = {
 };
 
 export function getArticulatoryCue(phoneme: string): ArticulatoryCue {
-  const normalized = phoneme.replace(/[/]/g, '');
+  const normalized = normalizePhoneme(phoneme);
   return (
     ARTICULATORY_CUES[normalized] ?? {
       mouthState: 'open-wide' as MouthState,
@@ -482,12 +486,12 @@ export const MILESTONE_CARDS: Record<number, MilestoneBlossomCardData> = {
 };
 
 export const HEART_WORD_CARDS: Record<number, HeartWordCardData> = {
-  3: createHeartWordCard(3, 'I', [{ grapheme: 'I', isHeart: true, phoneme: 'ī' }]),
-  4: createHeartWordCard(4, 'a', [{ grapheme: 'a', isHeart: true, phoneme: 'uh' }]),
-  5: createHeartWordCard(5, 'the', [
+  1: createHeartWordCard(1, 'the', [
     { grapheme: 'th', isHeart: false, phoneme: 'th' },
     { grapheme: 'e', isHeart: true, phoneme: 'uh' },
   ]),
+  3: createHeartWordCard(3, 'I', [{ grapheme: 'I', isHeart: true, phoneme: 'ī' }]),
+  4: createHeartWordCard(4, 'a', [{ grapheme: 'a', isHeart: true, phoneme: 'uh' }]),
   7: createHeartWordCard(7, 'to', [
     { grapheme: 't', isHeart: false, phoneme: 't' },
     { grapheme: 'o', isHeart: true, phoneme: 'oo' },
@@ -499,7 +503,7 @@ export const HEART_WORD_CARDS: Record<number, HeartWordCardData> = {
   9: createHeartWordCard(9, 'said', [
     { grapheme: 's', isHeart: false, phoneme: 's' },
     { grapheme: 'ai', isHeart: true, phoneme: 'ĕ' },
-    { grapheme: 'd', isHeart: false, phoneme: 'd' },
+    { grapheme: 'd', isHeart: true, phoneme: 'd' },
   ]),
 };
 
@@ -515,6 +519,18 @@ export const DECODABLE_STORY_CARDS: Record<number, DecodableStoryCardData> = {
 };
 
 export function generateLessonCycle(lessonNumber: number): GardenCard[] {
+  if (lessonNumber === 1) {
+    const letterCard = LETTER_CARDS[1];
+    const bubbleCard = BUBBLE_POP_CARDS[1];
+    const reinforcementCard: LetterCardData = {
+      ...createLetterCard(1, 'a', 'ă', 'continuous'),
+      id: 'lesson-1-letter-a-reinforce',
+      title: 'Letter a (Reinforcement)',
+    };
+    const heartCard = HEART_WORD_CARDS[1];
+    return [letterCard, bubbleCard, reinforcementCard, heartCard];
+  }
+
   const cards: GardenCard[] = [];
   const letterCard = LETTER_CARDS[lessonNumber];
   if (letterCard) {

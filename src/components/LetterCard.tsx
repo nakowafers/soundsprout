@@ -17,6 +17,7 @@ export const LetterCard: React.FC<LetterCardProps> = ({
   isCompleted = false,
 }) => {
   const isContinuous = card.phonemeClassification === 'continuous';
+  const cleanPhoneme = card.phoneme.replace(/[/]/g, '');
   const totalHoldMs = card.holdDurationMs ?? 1200;
   const totalPodsRequired = card.seedPodTapsRequired ?? 3;
 
@@ -325,7 +326,7 @@ export const LetterCard: React.FC<LetterCardProps> = ({
               marginBottom: '16px',
             }}
           >
-            Pop all 3 seed pods: /t/ /t/ /t/!
+            Pop all 3 seed pods: /{cleanPhoneme}/ /{cleanPhoneme}/ /{cleanPhoneme}/!
           </p>
           <div
             className="seed-pods-row"

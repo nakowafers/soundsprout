@@ -53,6 +53,26 @@ body {
   animation: vineBounceAnimation 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+/* Prompt Pulse on Elastic Bounce (ADR-0001 & Spec US-2) */
+@keyframes promptPulseAnimation {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 8px 32px rgba(46, 125, 50, 0.12);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 0 24px rgba(76, 175, 80, 0.6);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 8px 32px rgba(46, 125, 50, 0.12);
+  }
+}
+
+.prompt-pulse-active {
+  animation: promptPulseAnimation 0.35s ease-in-out;
+}
+
 /* Celebration Overlay Animations */
 @keyframes celebrationBounce {
   0% {

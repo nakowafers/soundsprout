@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GardenStateMachine } from '../state/gardenStateMachine';
+import { GardenStateMachine, getLessonStatus } from '../state/gardenStateMachine';
 import { AudioPort } from '../audio/audioPort';
 import { GardenSessionState } from '../domain/types';
 
@@ -20,11 +20,17 @@ export const EducatorModal: React.FC<EducatorModalProps> = ({
     stateMachine.getState()
   );
   const [isMuted, setIsMuted] = useState(audioPort.isMuted());
+  const [speechRate, setSpeechRate] = useState<number>(
+    audioPort.getSpeechRate ? audioPort.getSpeechRate() : 0.85
+  );
 
   useEffect(() => {
     if (!isOpen) return;
     setSessionState(stateMachine.getState());
     setIsMuted(audioPort.isMuted());
+    if (audioPort.getSpeechRate) {
+      setSpeechRate(audioPort.getSpeechRate());
+    }
     const unsubscribe = stateMachine.subscribe((next) => {
       setSessionState(next);
     });
@@ -51,26 +57,12 @@ export const EducatorModal: React.FC<EducatorModalProps> = ({
     onClose();
   };
 
-  const isLessonComplete = (lessonNum: number) => {
-    const lessonCards = sessionState.cards.filter(
-      (c) => c.lessonNumber === lessonNum && !c.id.startsWith('mastery-batch-')
-    );
-    if (lessonCards.length === 0) return false;
-    return lessonCards.every((c) => sessionState.completedCardIds.includes(c.id));
-  };
-
-  const isLessonInProgress = (lessonNum: number) => {
-    const lessonCards = sessionState.cards.filter(
-      (c) => c.lessonNumber === lessonNum && !c.id.startsWith('mastery-batch-')
-    );
-    if (lessonCards.length === 0) return false;
-    const firstIdx = sessionState.cards.findIndex((c) => c.id === lessonCards[0].id);
-    const lastIdx = firstIdx + lessonCards.length - 1;
-    return (
-      sessionState.frontierIndex >= firstIdx &&
-      sessionState.frontierIndex <= lastIdx &&
-      !isLessonComplete(lessonNum)
-    );
+  const handleSpeechRateToggle = () => {
+    const nextRate = speechRate < 0.9 ? 1.0 : 0.8;
+    if (audioPort.setSpeechRate) {
+      audioPort.setSpeechRate(nextRate);
+    }
+    setSpeechRate(nextRate);
   };
 
   const hasMasteryCards = sessionState.cards.some((c) =>
@@ -167,7 +159,7 @@ export const EducatorModal: React.FC<EducatorModalProps> = ({
             gap: '20px',
           }}
         >
-          {/* Audio Controls */}
+          {/* Audio & Voice Settings */}
           <section
             style={{
               padding: '12px 16px',
@@ -175,39 +167,87 @@ export const EducatorModal: React.FC<EducatorModalProps> = ({
               borderRadius: '16px',
               border: '1px solid #EEEEEE',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              flexDirection: 'column',
+              gap: '12px',
             }}
           >
-            <div>
-              <div style={{ fontSize: '15px', fontWeight: 700, color: '#333333' }}>
-                Sound Effects & Audio
-              </div>
-              <div style={{ fontSize: '13px', color: '#666666' }}>
-                Phoneme sounds, hints, and celebration fanfare
-              </div>
-            </div>
-            <button
-              type="button"
-              data-testid="audio-mute-toggle"
-              onClick={handleMuteToggle}
+            <div
               style={{
-                display: 'inline-flex',
+                display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '8px 14px',
-                backgroundColor: isMuted ? '#FFEBEE' : '#E8F5E9',
-                color: isMuted ? '#C62828' : '#2E7D32',
-                border: `2px solid ${isMuted ? '#EF9A9A' : '#A5D6A7'}`,
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: 700,
-                cursor: 'pointer',
+                justifyContent: 'space-between',
               }}
             >
-              <span>{isMuted ? '🔇' : '🔊'}</span>
-              <span>{isMuted ? 'Muted' : 'Unmuted'}</span>
-            </button>
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: '#333333' }}>
+                  Sound Effects & Audio
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Phoneme sounds, hints, and celebration fanfare
+                </div>
+              </div>
+              <button
+                type="button"
+                data-testid="audio-mute-toggle"
+                onClick={handleMuteToggle}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  backgroundColor: isMuted ? '#FFEBEE' : '#E8F5E9',
+                  color: isMuted ? '#C62828' : '#2E7D32',
+                  border: `2px solid ${isMuted ? '#EF9A9A' : '#A5D6A7'}`,
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                <span>{isMuted ? '🔇' : '🔊'}</span>
+                <span>{isMuted ? 'Muted' : 'Unmuted'}</span>
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderTop: '1px solid #EEEEEE',
+                paddingTop: '10px',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: '#333333' }}>
+                  Voice Cadence & Speech Rate
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Adjust pronunciation speed for learner clarity
+                </div>
+              </div>
+              <button
+                type="button"
+                data-testid="voice-cadence-toggle"
+                onClick={handleSpeechRateToggle}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  backgroundColor: speechRate < 0.9 ? '#FFF3E0' : '#E8F5E9',
+                  color: speechRate < 0.9 ? '#E65100' : '#2E7D32',
+                  border: `2px solid ${speechRate < 0.9 ? '#FFB74D' : '#A5D6A7'}`,
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                <span>🗣️</span>
+                <span>{speechRate < 0.9 ? 'Slow & Clear (0.8x)' : 'Normal (1.0x)'}</span>
+              </button>
+            </div>
           </section>
 
           {/* Lesson Progress & Jump Navigator */}
@@ -234,17 +274,16 @@ export const EducatorModal: React.FC<EducatorModalProps> = ({
               }}
             >
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((lessonNum) => {
-                const complete = isLessonComplete(lessonNum);
-                const inProgress = isLessonInProgress(lessonNum);
+                const status = getLessonStatus(sessionState, lessonNum);
                 let statusText = 'Not Started';
                 let statusBg = '#EEEEEE';
                 let statusColor = '#616161';
 
-                if (complete) {
+                if (status === 'completed') {
                   statusText = 'Completed';
                   statusBg = '#C8E6C9';
                   statusColor = '#2E7D32';
-                } else if (inProgress) {
+                } else if (status === 'in-progress') {
                   statusText = 'In Progress';
                   statusBg = '#FFF9C4';
                   statusColor = '#F57F17';

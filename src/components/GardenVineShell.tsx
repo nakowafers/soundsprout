@@ -128,7 +128,7 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
     ? sessionState.completedCardIds.includes(activeCard.id)
     : false;
 
-  const isBelowFrontier = sessionState.activeIndex < sessionState.frontierIndex;
+  const isReviewingAboveFrontier = sessionState.activeIndex < sessionState.frontierIndex;
 
   return (
     <div
@@ -255,17 +255,21 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
         {/* Active Card Container */}
         <main
           data-testid="active-card-container"
+          data-prompt-pulsing={isBouncing ? 'true' : 'false'}
+          className={isBouncing ? 'prompt-pulse-active' : ''}
           style={{
             width: '100%',
             maxWidth: '480px',
             backgroundColor: '#FFFFFF',
             borderRadius: '24px',
-            boxShadow: '0 8px 32px rgba(46, 125, 50, 0.12)',
-            border: '3px solid #A5D6A7',
+            boxShadow: isBouncing
+              ? '0 0 24px rgba(76, 175, 80, 0.6)'
+              : '0 8px 32px rgba(46, 125, 50, 0.12)',
+            border: isBouncing ? '3px solid #43A047' : '3px solid #A5D6A7',
             padding: '20px 16px',
             position: 'relative',
             zIndex: 5,
-            transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+            transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, border-color 0.3s ease',
             transform: isBouncing ? 'translateY(-24px)' : 'translateY(0)',
           }}
         >
@@ -327,7 +331,7 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
       </div>
 
       {/* Floating Return to Frontier Pill when browsing earlier bloomed cards */}
-      {isBelowFrontier && (
+      {isReviewingAboveFrontier && (
         <ReturnToFrontierPill
           onReturn={() => stateMachine.returnToFrontier()}
           frontierCardTitle={sessionState.cards[sessionState.frontierIndex]?.title}

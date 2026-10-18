@@ -10,4 +10,6 @@ export interface AudioPort {
   playChime(): void;
   setMuted(muted: boolean): void;
   isMuted(): boolean;
+  setSpeechRate?(rate: number): void;
+  getSpeechRate?(): number;
 }

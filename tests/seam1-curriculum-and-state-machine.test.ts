@@ -2,10 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   getPhonemeClassification,
   getArticulatoryCue,
+  normalizePhoneme,
   INITIAL_CURRICULUM_CARDS,
+  HEART_WORD_CARDS,
   createGardenStateMachine,
   generateLessonCycle,
   generateMasteryBatch,
+  getMasteryBatchCount,
+  getLessonStatus,
   BubblePopCardData,
 } from '../src/domain';
 
@@ -78,7 +82,7 @@ describe('Seam 1 — Pure UFLI Curriculum & Garden State Machine Seam', () => {
       expect(blendingCards).toHaveLength(0);
 
       const letterCards = lesson1Cards.filter((c) => c.type === 'letter');
-      expect(letterCards).toHaveLength(1);
+      expect(letterCards.length).toBeGreaterThanOrEqual(1);
       expect((letterCards[0] as any).grapheme).toBe('a');
       expect((letterCards[0] as any).phonemeClassification).toBe('continuous');
       expect((letterCards[0] as any).holdDurationMs).toBe(1200);
@@ -97,7 +101,7 @@ describe('Seam 1 — Pure UFLI Curriculum & Garden State Machine Seam', () => {
       }
     });
 
-    it('ensures non-consolidation Lessons (1, 2, 3, 4, 6, 7, 8, 9) introduce exactly one Letter Card with valid physics', () => {
+    it('ensures non-consolidation Lessons (1, 2, 3, 4, 6, 7, 8, 9) introduce Letter Cards with valid physics', () => {
       const expectedLetters: Record<number, { letter: string; classification: string; taps?: number; hold?: number }> = {
         1: { letter: 'a', classification: 'continuous', hold: 1200 },
         2: { letter: 'm', classification: 'continuous', hold: 1200 },
@@ -114,7 +118,11 @@ describe('Seam 1 — Pure UFLI Curriculum & Garden State Machine Seam', () => {
         const lessonCards = INITIAL_CURRICULUM_CARDS.filter((c) => c.lessonNumber === lessonNum);
         const letterCards = lessonCards.filter((c) => c.type === 'letter');
 
-        expect(letterCards).toHaveLength(1);
+        if (lessonNum === 1) {
+          expect(letterCards).toHaveLength(2);
+        } else {
+          expect(letterCards).toHaveLength(1);
+        }
         const card = letterCards[0] as any;
         expect(card.grapheme).toBe(expected.letter);
         expect(card.phonemeClassification).toBe(expected.classification);
@@ -382,11 +390,11 @@ describe('Seam 1 — Pure UFLI Curriculum & Garden State Machine Seam', () => {
   });
 
   describe('Lesson Cycle Generation & Phoneme Bubble Pop Invariants', () => {
-    it('generates lesson cycle for Lesson 1 with Letter Card followed by Phoneme Bubble Pop card', () => {
+    it('generates lesson cycle for Lesson 1 with 4-card cycle: Letter Card, Bubble Pop, Letter reinforcement, and Heart Word (the)', () => {
       const lesson1Cards = generateLessonCycle(1);
-      expect(lesson1Cards).toHaveLength(2);
+      expect(lesson1Cards).toHaveLength(4);
 
-      const [letterCard, bubblePopCard] = lesson1Cards;
+      const [letterCard, bubblePopCard, letterReinforceCard, heartWordCard] = lesson1Cards;
       expect(letterCard.type).toBe('letter');
       expect(letterCard.id).toBe('lesson-1-letter-a');
       expect(letterCard.lessonNumber).toBe(1);
@@ -394,6 +402,14 @@ describe('Seam 1 — Pure UFLI Curriculum & Garden State Machine Seam', () => {
       expect(bubblePopCard.type).toBe('bubble-pop');
       expect(bubblePopCard.id).toBe('lesson-1-bubble-pop-a');
       expect(bubblePopCard.lessonNumber).toBe(1);
+
+      expect(letterReinforceCard.type).toBe('letter');
+      expect(letterReinforceCard.id).toBe('lesson-1-letter-a-reinforce');
+      expect(letterReinforceCard.lessonNumber).toBe(1);
+
+      expect(heartWordCard.type).toBe('heart-word');
+      expect((heartWordCard as any).word).toBe('the');
+      expect(heartWordCard.lessonNumber).toBe(1);
     });
 
     it('ensures Lesson 1 Phoneme Bubble Pop card has 6 bubbles with 3 /ă/ targets and 3 non-/ă/ distractors without untaught consonant blending', () => {
@@ -761,6 +777,60 @@ describe('Seam 1 — Pure UFLI Curriculum & Garden State Machine Seam', () => {
       expect(resetState.unlockedBlossoms).toEqual([]);
       expect(resetState.unlockedCritters).toEqual([]);
       expect(resetState.cards.length).toBe(INITIAL_CURRICULUM_CARDS.length);
+    });
+  });
+
+  describe('Two-Axis Code Review Fixes & Pedagogical Invariants', () => {
+    it('normalizes phonemes by stripping slashes and lowercasing', () => {
+      expect(normalizePhoneme('/ă/')).toBe('ă');
+      expect(normalizePhoneme('/T/')).toBe('t');
+      expect(normalizePhoneme('///f///')).toBe('f');
+      expect(normalizePhoneme('s')).toBe('s');
+    });
+
+    it('marks letter d in Heart Word said as an irregular/unlearned heart part', () => {
+      const saidCard = HEART_WORD_CARDS[9];
+      expect(saidCard).toBeDefined();
+      expect(saidCard.word.toLowerCase()).toBe('said');
+
+      const dPart = saidCard.parts.find((p) => p.grapheme.toLowerCase() === 'd');
+      expect(dPart).toBeDefined();
+      expect(dPart?.isHeart).toBe(true);
+
+      const aiPart = saidCard.parts.find((p) => p.grapheme.toLowerCase() === 'ai');
+      expect(aiPart).toBeDefined();
+      expect(aiPart?.isHeart).toBe(true);
+    });
+
+    it('deduplicates mastery batch count calculation via getMasteryBatchCount', () => {
+      expect(getMasteryBatchCount([])).toBe(0);
+      expect(getMasteryBatchCount(INITIAL_CURRICULUM_CARDS)).toBe(0);
+
+      const batch1 = generateMasteryBatch(1);
+      expect(getMasteryBatchCount(batch1)).toBe(1);
+
+      const batch2 = generateMasteryBatch(2);
+      expect(getMasteryBatchCount([...batch1, ...batch2])).toBe(2);
+    });
+
+    it('accurately resolves lesson status across not-started, in-progress, and completed states via getLessonStatus', () => {
+      const machine = createGardenStateMachine();
+      const state = machine.getState();
+
+      // Initially Lesson 1 is in-progress (frontierIndex is 0), Lesson 2 is not-started
+      expect(getLessonStatus(state, 1)).toBe('in-progress');
+      expect(getLessonStatus(state, 2)).toBe('not-started');
+
+      // Complete all 4 cards of Lesson 1
+      for (let i = 0; i < 4; i++) {
+        machine.completeActiveCard();
+        machine.finishCelebration();
+      }
+
+      const stateAfterL1 = machine.getState();
+      expect(getLessonStatus(stateAfterL1, 1)).toBe('completed');
+      expect(getLessonStatus(stateAfterL1, 2)).toBe('in-progress');
+      expect(getLessonStatus(stateAfterL1, 3)).toBe('not-started');
     });
   });
 });

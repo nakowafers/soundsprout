@@ -19,6 +19,7 @@ export class StubAudioPort implements AudioPort {
   public wobbleHintCount = 0;
   public bloomFanfareCount = 0;
   public chimeCount = 0;
+  public speechRate = 0.85;
 
   private record(method: keyof AudioPort, ...args: any[]) {
     this.calls.push({ method, args, timestamp: Date.now() });
@@ -96,6 +97,15 @@ export class StubAudioPort implements AudioPort {
     return this._muted;
   }
 
+  setSpeechRate(rate: number): void {
+    this.speechRate = rate;
+    this.record('setSpeechRate' as any, rate);
+  }
+
+  getSpeechRate(): number {
+    return this.speechRate;
+  }
+
   reset(): void {
     this.calls = [];
     this.playedPhonemes = [];
@@ -107,6 +117,7 @@ export class StubAudioPort implements AudioPort {
     this.wobbleHintCount = 0;
     this.bloomFanfareCount = 0;
     this.chimeCount = 0;
+    this.speechRate = 0.85;
     this._muted = false;
   }
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MilestoneBlossomCardData } from '../domain/types';
+import { MILESTONE_DEFINITIONS } from '../domain/curriculum';
 import { AudioPort } from '../audio/audioPort';
 
 export interface MilestoneBlossomCardProps {
@@ -8,20 +9,6 @@ export interface MilestoneBlossomCardProps {
   onComplete: () => void;
   isCompleted: boolean;
 }
-
-const BLOSSOM_EMOJIS: Record<string, string> = {
-  'Sunburst Daisy': '🌼',
-  'Dewdrop Tulip': '🌷',
-  'Berry Blossom': '🌸',
-  'Golden Sunflower': '🌻',
-};
-
-const CRITTER_EMOJIS: Record<string, string> = {
-  'Ladybug Lou': '🐞',
-  'Pip the Caterpillar': '🐛',
-  'Sunny the Honeybee': '🐝',
-  'Flutter the Butterfly': '🦋',
-};
 
 export const MilestoneBlossomCard: React.FC<MilestoneBlossomCardProps> = ({
   card,
@@ -33,8 +20,11 @@ export const MilestoneBlossomCard: React.FC<MilestoneBlossomCardProps> = ({
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
 
   const isActuallyBloomed = bloomed || isCompleted;
-  const flowerEmoji = BLOSSOM_EMOJIS[card.blossomName] ?? '🌸';
-  const critterEmoji = CRITTER_EMOJIS[card.critterName] ?? '✨';
+  const milestoneDef = MILESTONE_DEFINITIONS.find(
+    (def) => def.blossomName === card.blossomName || def.lessonNumber === card.lessonNumber
+  );
+  const flowerEmoji = milestoneDef?.blossomEmoji ?? '🌸';
+  const critterEmoji = milestoneDef?.critterEmoji ?? '✨';
 
   const handleTap = () => {
     audioPort.playBloomFanfare();
