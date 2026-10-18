@@ -556,3 +556,64 @@ export const INITIAL_CURRICULUM_CARDS: GardenCard[] = [
   ...generateLessonCycle(10),
 ];
 
+export function generateMasteryBatch(batchNumber: number): GardenCard[] {
+  const safeBatch = Math.max(1, batchNumber);
+
+  // 1. Bubble Pop (sampled across Lessons 1–10)
+  const bubbleKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const bubbleTemplate = BUBBLE_POP_CARDS[bubbleKeys[(safeBatch - 1) % bubbleKeys.length]];
+  const bubbleCard: BubblePopCardData = {
+    ...bubbleTemplate,
+    id: `mastery-batch-${safeBatch}-bubble-pop`,
+    lessonNumber: 10,
+    title: `Mastery: Bubble Pop /${bubbleTemplate.targetPhoneme}/`,
+    bubbles: bubbleTemplate.bubbles.map((b, i) => ({
+      ...b,
+      id: `mastery-batch-${safeBatch}-bubble-${i}`,
+    })),
+  };
+
+  // 2. Blending Word (sampled across Lessons 2–10)
+  const allBlendingWordTemplates = Object.values(BLENDING_WORD_CARDS).flat();
+  const blendTemplate =
+    allBlendingWordTemplates[(safeBatch - 1) % allBlendingWordTemplates.length];
+  const blendCard: BlendingWordCardData = {
+    id: `mastery-batch-${safeBatch}-blending-word`,
+    lessonNumber: 10,
+    type: 'blending-word',
+    title: `Mastery: Blend ${blendTemplate.word}`,
+    word: blendTemplate.word,
+    graphemes: [...blendTemplate.graphemes],
+    illustration: blendTemplate.illustration,
+  };
+
+  // 3. Heart Word (sampled across Lessons 3–9)
+  const allHeartWordTemplates = Object.values(HEART_WORD_CARDS);
+  const heartTemplate =
+    allHeartWordTemplates[(safeBatch - 1) % allHeartWordTemplates.length];
+  const heartCard: HeartWordCardData = {
+    id: `mastery-batch-${safeBatch}-heart-word`,
+    lessonNumber: 10,
+    type: 'heart-word',
+    title: `Mastery: Heart Word ${heartTemplate.word}`,
+    word: heartTemplate.word,
+    parts: heartTemplate.parts.map((p) => ({ ...p })),
+  };
+
+  // 4. Decodable Story (sampled across Lessons 3–10)
+  const allStoryTemplates = Object.values(DECODABLE_STORY_CARDS);
+  const storyTemplate =
+    allStoryTemplates[(safeBatch - 1) % allStoryTemplates.length];
+  const storyCard: DecodableStoryCardData = {
+    id: `mastery-batch-${safeBatch}-decodable-story`,
+    lessonNumber: 10,
+    type: 'decodable-story',
+    title: `Mastery: Story ${storyTemplate.sentence}`,
+    sentence: storyTemplate.sentence,
+    words: [...storyTemplate.words],
+  };
+
+  return [bubbleCard, blendCard, heartCard, storyCard];
+}
+
+

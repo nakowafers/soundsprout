@@ -19,6 +19,8 @@ import { HeartWordCard } from './HeartWordCard';
 import { DecodableStoryCard } from './DecodableStoryCard';
 import { ReturnToFrontierPill } from './ReturnToFrontierPill';
 import { CelebrationOverlay } from './CelebrationOverlay';
+import { ParentGateButton } from './ParentGateButton';
+import { EducatorModal } from './EducatorModal';
 
 export interface GardenVineShellProps {
   stateMachine: GardenStateMachine;
@@ -34,6 +36,7 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
   );
   const [isBouncing, setIsBouncing] = useState(false);
   const [isGreenhouseOpen, setIsGreenhouseOpen] = useState(false);
+  const [isEducatorModalOpen, setIsEducatorModalOpen] = useState(false);
   const bounceTimerRef = useRef<number | null>(null);
   const celebrationTimerRef = useRef<number | null>(null);
 
@@ -216,6 +219,9 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
             </span>
           </button>
 
+          {/* Parent Gate 3-Second Hold Educator Settings Button */}
+          <ParentGateButton onOpen={() => setIsEducatorModalOpen(true)} />
+
           <span
             style={{
               fontSize: '14px',
@@ -226,7 +232,9 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
               borderRadius: '16px',
             }}
           >
-            Lesson {activeCard ? activeCard.lessonNumber : 1}
+            {activeCard?.id.startsWith('mastery-')
+              ? 'Mastery Stream'
+              : `Lesson ${activeCard ? activeCard.lessonNumber : 1}`}
           </span>
         </div>
       </header>
@@ -335,6 +343,14 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
         onClose={() => setIsGreenhouseOpen(false)}
         unlockedBlossoms={sessionState.unlockedBlossoms}
         unlockedCritters={sessionState.unlockedCritters}
+        audioPort={audioPort}
+      />
+
+      {/* Educator Modal Guarded by Parent Gate */}
+      <EducatorModal
+        isOpen={isEducatorModalOpen}
+        onClose={() => setIsEducatorModalOpen(false)}
+        stateMachine={stateMachine}
         audioPort={audioPort}
       />
     </div>

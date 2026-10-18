@@ -9,6 +9,8 @@ import { PhonemeBubblePopCard } from '../src/components/PhonemeBubblePopCard';
 import { HeartWordCard } from '../src/components/HeartWordCard';
 import { DecodableStoryCard } from '../src/components/DecodableStoryCard';
 import { GardenVineShell } from '../src/components/GardenVineShell';
+import { ParentGateButton } from '../src/components/ParentGateButton';
+import { EducatorModal } from '../src/components/EducatorModal';
 import { createStubAudioPort, StubAudioPort } from '../src/audio';
 import {
   INITIAL_CURRICULUM_CARDS,
@@ -1382,4 +1384,246 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
       expect(audioPort.chimeCount).toBe(initialChimes + 1);
     });
   });
+
+  describe('Parent Gate 3-Second Hold Gesture Physics (ADR-0001 & Issue #7)', () => {
+    it('renders subtle parent gate button with circular progress ring', () => {
+      const onOpen = vi.fn();
+      render(<ParentGateButton onOpen={onOpen} />);
+
+      const btn = screen.getByTestId('parent-gate-button');
+      expect(btn).toBeInTheDocument();
+      expect(btn).toHaveAttribute('aria-label', expect.stringMatching(/Educator Settings|Parent Gate/i));
+
+      const ring = screen.getByTestId('parent-gate-progress-ring');
+      expect(ring).toBeInTheDocument();
+      expect(ring).toHaveAttribute('data-progress', '0');
+    });
+
+    it('resets hold progress to zero when released before 3,000ms (e.g. 1,500ms) without opening modal', () => {
+      const onOpen = vi.fn();
+      render(<ParentGateButton onOpen={onOpen} />);
+
+      const btn = screen.getByTestId('parent-gate-button');
+      const ring = screen.getByTestId('parent-gate-progress-ring');
+
+      // Pointer down starts hold
+      fireEvent.pointerDown(btn);
+
+      // Advance by 1,500ms
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+
+      // Progress should be partially filled (around 50%)
+      const midProgress = Number(ring.getAttribute('data-progress'));
+      expect(midProgress).toBeGreaterThan(0);
+      expect(midProgress).toBeLessThan(100);
+      expect(onOpen).not.toHaveBeenCalled();
+
+      // Early release at 1,500ms
+      fireEvent.pointerUp(btn);
+
+      // Progress must reset back to 0 immediately
+      expect(ring).toHaveAttribute('data-progress', '0');
+      expect(onOpen).not.toHaveBeenCalled();
+
+      // Advance past remaining time to ensure no dangling timer triggers
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(onOpen).not.toHaveBeenCalled();
+    });
+
+    it('triggers onOpen when held continuously for full 3,000ms', () => {
+      const onOpen = vi.fn();
+      render(<ParentGateButton onOpen={onOpen} />);
+
+      const btn = screen.getByTestId('parent-gate-button');
+      const ring = screen.getByTestId('parent-gate-progress-ring');
+
+      fireEvent.pointerDown(btn);
+
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      // Progress resets after triggering
+      expect(ring).toHaveAttribute('data-progress', '0');
+    });
+
+    it('cancels hold if pointer leaves or cancels before 3,000ms', () => {
+      const onOpen = vi.fn();
+      render(<ParentGateButton onOpen={onOpen} />);
+
+      const btn = screen.getByTestId('parent-gate-button');
+      const ring = screen.getByTestId('parent-gate-progress-ring');
+
+      fireEvent.pointerDown(btn);
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      fireEvent.pointerLeave(btn);
+      expect(ring).toHaveAttribute('data-progress', '0');
+      expect(onOpen).not.toHaveBeenCalled();
+
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(onOpen).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Educator Modal Controls (Issue #7)', () => {
+    it('displays completion status for Lessons 1–10 and Mastery Stream', () => {
+      const stateMachine = createGardenStateMachine();
+      const onClose = vi.fn();
+
+      render(
+        <EducatorModal
+          isOpen={true}
+          onClose={onClose}
+          stateMachine={stateMachine}
+          audioPort={audioPort}
+        />
+      );
+
+      expect(screen.getByTestId('educator-modal')).toBeInTheDocument();
+      // Lessons 1 through 10 listed
+      for (let i = 1; i <= 10; i++) {
+        expect(screen.getByTestId(`lesson-status-${i}`)).toBeInTheDocument();
+      }
+      expect(screen.getByTestId('mastery-stream-status')).toBeInTheDocument();
+    });
+
+    it('allows jumping to any Lesson 1–10, moving Vine Frontier and closing modal', () => {
+      const stateMachine = createGardenStateMachine();
+      const onClose = vi.fn();
+
+      render(
+        <EducatorModal
+          isOpen={true}
+          onClose={onClose}
+          stateMachine={stateMachine}
+          audioPort={audioPort}
+        />
+      );
+
+      // Jump to Lesson 4
+      const jumpL4 = screen.getByTestId('jump-lesson-4');
+      fireEvent.click(jumpL4);
+
+      expect(stateMachine.getState().cards[stateMachine.getState().activeIndex].lessonNumber).toBe(4);
+      expect(stateMachine.getState().activeIndex).toBe(stateMachine.getState().frontierIndex);
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it('allows jumping to Mastery Stream', () => {
+      const stateMachine = createGardenStateMachine();
+      const onClose = vi.fn();
+
+      render(
+        <EducatorModal
+          isOpen={true}
+          onClose={onClose}
+          stateMachine={stateMachine}
+          audioPort={audioPort}
+        />
+      );
+
+      const jumpMastery = screen.getByTestId('jump-lesson-mastery');
+      fireEvent.click(jumpMastery);
+
+      expect(
+        stateMachine.getState().cards[stateMachine.getState().activeIndex].id
+      ).toBe('mastery-batch-1-bubble-pop');
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it('toggles audio mute on AudioPort via mute button', () => {
+      const stateMachine = createGardenStateMachine();
+      const onClose = vi.fn();
+
+      render(
+        <EducatorModal
+          isOpen={true}
+          onClose={onClose}
+          stateMachine={stateMachine}
+          audioPort={audioPort}
+        />
+      );
+
+      expect(audioPort.isMuted()).toBe(false);
+      const muteBtn = screen.getByTestId('audio-mute-toggle');
+
+      fireEvent.click(muteBtn);
+      expect(audioPort.isMuted()).toBe(true);
+
+      fireEvent.click(muteBtn);
+      expect(audioPort.isMuted()).toBe(false);
+    });
+
+    it('resets garden progress to Lesson 1 via reset button', () => {
+      const stateMachine = createGardenStateMachine();
+      stateMachine.jumpToLesson(5);
+      const onClose = vi.fn();
+
+      render(
+        <EducatorModal
+          isOpen={true}
+          onClose={onClose}
+          stateMachine={stateMachine}
+          audioPort={audioPort}
+        />
+      );
+
+      expect(stateMachine.getState().frontierIndex).toBeGreaterThan(0);
+
+      const resetBtn = screen.getByTestId('reset-progress-button');
+      fireEvent.click(resetBtn);
+
+      expect(stateMachine.getState().frontierIndex).toBe(0);
+      expect(stateMachine.getState().activeIndex).toBe(0);
+      expect(stateMachine.getState().completedCardIds).toEqual([]);
+    });
+  });
+
+  describe('GardenVineShell: End-to-End Parent Gate & Educator Modal Integration', () => {
+    it('guards Educator Modal with 3,000ms uninterrupted hold and allows lesson jump from header', () => {
+      const stateMachine = createGardenStateMachine();
+      render(<GardenVineShell stateMachine={stateMachine} audioPort={audioPort} />);
+
+      // Parent gate button exists in header
+      const gateBtn = screen.getByTestId('parent-gate-button');
+      expect(gateBtn).toBeInTheDocument();
+
+      // Quick tap or short hold does not open modal
+      fireEvent.pointerDown(gateBtn);
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+      fireEvent.pointerUp(gateBtn);
+
+      expect(screen.queryByTestId('educator-modal')).not.toBeInTheDocument();
+
+      // Sustained 3,000ms hold opens Educator Modal
+      fireEvent.pointerDown(gateBtn);
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      expect(screen.getByTestId('educator-modal')).toBeInTheDocument();
+
+      // Inside modal, jump to Lesson 6
+      const jumpL6 = screen.getByTestId('jump-lesson-6');
+      fireEvent.click(jumpL6);
+
+      // Modal closed, active card is Lesson 6
+      expect(screen.queryByTestId('educator-modal')).not.toBeInTheDocument();
+      expect(screen.getByText(/Lesson 6/i)).toBeInTheDocument();
+      expect(stateMachine.getState().cards[stateMachine.getState().activeIndex].lessonNumber).toBe(6);
+    });
+  });
 });
+
