@@ -5,6 +5,7 @@ import {
   INITIAL_CURRICULUM_CARDS,
   createGardenStateMachine,
   generateLessonCycle,
+  generateMasteryBatch,
   BubblePopCardData,
 } from '../src/domain';
 
@@ -533,5 +534,236 @@ describe('Seam 1 — Pure UFLI Curriculum & Garden State Machine Seam', () => {
       expect(machine2.getState().unlockedCritters).toEqual(['Ladybug Lou']);
     });
   });
+
+  describe('Procedural Mastery Stream Invariants (ADR-0003)', () => {
+    const TAUGHT_GRAPHEMES = new Set(['a', 'm', 's', 't', 'p', 'f', 'i', 'n']);
+    const TAUGHT_PHONEMES = new Set(['ă', 'm', 's', 't', 'p', 'f', 'ĭ', 'n']);
+    const TAUGHT_HEART_WORDS = new Set(['i', 'a', 'the', 'to', 'is', 'said']);
+
+    it('generates a fresh 4-card review batch in the exact canonical order: Bubble Pop, Blending Word, Heart Word, Decodable Story', () => {
+      const batch1 = generateMasteryBatch(1);
+      expect(batch1).toHaveLength(4);
+
+      const [bubbleCard, blendCard, heartCard, storyCard] = batch1;
+
+      expect(bubbleCard.type).toBe('bubble-pop');
+      expect(bubbleCard.id).toBe('mastery-batch-1-bubble-pop');
+
+      expect(blendCard.type).toBe('blending-word');
+      expect(blendCard.id).toBe('mastery-batch-1-blending-word');
+
+      expect(heartCard.type).toBe('heart-word');
+      expect(heartCard.id).toBe('mastery-batch-1-heart-word');
+
+      expect(storyCard.type).toBe('decodable-story');
+      expect(storyCard.id).toBe('mastery-batch-1-decodable-story');
+    });
+
+    it('ensures every card generated in mastery batches satisfies Lesson 1–10 cumulative decodability and phoneme invariants', () => {
+      // Test across multiple procedural batches (e.g. batches 1 through 10)
+      for (let b = 1; b <= 10; b++) {
+        const batch = generateMasteryBatch(b);
+        expect(batch).toHaveLength(4);
+
+        const [bubble, blend, heart, story] = batch as [any, any, any, any];
+
+        // Bubble Pop invariant: target phoneme taught in Lessons 1-10, exactly 6 bubbles, 3 targets, 3 distractors
+        expect(TAUGHT_PHONEMES.has(bubble.targetPhoneme)).toBe(true);
+        expect(bubble.bubbles).toHaveLength(6);
+        const targets = bubble.bubbles.filter((item: any) => item.isTarget);
+        const distractors = bubble.bubbles.filter((item: any) => !item.isTarget);
+        expect(targets).toHaveLength(3);
+        expect(distractors).toHaveLength(3);
+        expect(bubble.targetCountRequired).toBe(3);
+
+        // Blending Word invariant: every grapheme taught in Lessons 1-10
+        expect(blend.graphemes.length).toBeGreaterThanOrEqual(2);
+        for (const g of blend.graphemes) {
+          expect(TAUGHT_GRAPHEMES.has(g.toLowerCase())).toBe(true);
+        }
+
+        // Heart Word invariant: recognized heart word with at least one heart part
+        expect(TAUGHT_HEART_WORDS.has(heart.word.toLowerCase())).toBe(true);
+        expect(heart.parts.some((p: any) => p.isHeart)).toBe(true);
+
+        // Decodable Story invariant: every word in story is taught heart word or strictly decodable
+        for (const rawWord of story.words) {
+          const clean = rawWord.toLowerCase().replace(/[^a-z]/g, '');
+          if (!TAUGHT_HEART_WORDS.has(clean)) {
+            for (const ch of clean) {
+              expect(
+                TAUGHT_GRAPHEMES.has(ch),
+                `Mastery batch ${b} story word '${rawWord}' contains untaught letter '${ch}'`
+              ).toBe(true);
+            }
+          }
+        }
+      }
+    });
+
+    it('generates unique card IDs across distinct batches to prevent infinite-scroll key collisions', () => {
+      const allIds = new Set<string>();
+      for (let b = 1; b <= 5; b++) {
+        const batch = generateMasteryBatch(b);
+        for (const card of batch) {
+          expect(allIds.has(card.id)).toBe(false);
+          allIds.add(card.id);
+        }
+      }
+      expect(allIds.size).toBe(20);
+    });
+  });
+
+  describe('Garden State Machine: Mastery Stream & Lesson Jump Transitions', () => {
+    it('automatically appends a fresh Mastery Stream batch when completing Lesson 10 final Milestone Blossom', () => {
+      const machine = createGardenStateMachine();
+      const initialTotal = machine.getState().cards.length;
+
+      // Jump machine directly to the final card (Lesson 10 Milestone Blossom)
+      const l10MilestoneIndex = machine
+        .getState()
+        .cards.findIndex((c) => c.type === 'milestone-blossom' && c.lessonNumber === 10);
+      expect(l10MilestoneIndex).toBe(initialTotal - 1);
+
+      // Advance machine to the milestone blossom
+      for (let i = 0; i < l10MilestoneIndex; i++) {
+        machine.completeActiveCard();
+        machine.finishCelebration();
+      }
+
+      expect(machine.getState().frontierIndex).toBe(l10MilestoneIndex);
+      expect(machine.getState().activeIndex).toBe(l10MilestoneIndex);
+
+      // Complete Lesson 10's final Milestone Blossom
+      const completeRes = machine.completeActiveCard();
+      expect(completeRes.isAutoAdvancing).toBe(true);
+
+      const stateAfterCompletion = machine.getState();
+      expect(stateAfterCompletion.cards.length).toBe(initialTotal + 4);
+      expect(stateAfterCompletion.cards[initialTotal].id).toBe('mastery-batch-1-bubble-pop');
+      expect(stateAfterCompletion.cards[initialTotal + 1].id).toBe('mastery-batch-1-blending-word');
+      expect(stateAfterCompletion.cards[initialTotal + 2].id).toBe('mastery-batch-1-heart-word');
+      expect(stateAfterCompletion.cards[initialTotal + 3].id).toBe('mastery-batch-1-decodable-story');
+
+      // Finish celebration moves into the first card of the Mastery Stream
+      machine.finishCelebration();
+      const stateAfterCelebration = machine.getState();
+      expect(stateAfterCelebration.frontierIndex).toBe(initialTotal);
+      expect(stateAfterCelebration.activeIndex).toBe(initialTotal);
+      expect(stateAfterCelebration.cards[stateAfterCelebration.activeIndex].id).toBe(
+        'mastery-batch-1-bubble-pop'
+      );
+    });
+
+    it('infinitely extends the Garden Vine as cards in the Mastery Stream are completed without hitting a terminal wall', () => {
+      const machine = createGardenStateMachine();
+      const initialTotal = machine.getState().cards.length;
+
+      // Advance to Mastery Stream
+      const l10MilestoneIndex = machine
+        .getState()
+        .cards.findIndex((c) => c.type === 'milestone-blossom' && c.lessonNumber === 10);
+      for (let i = 0; i < l10MilestoneIndex; i++) {
+        machine.completeActiveCard();
+        machine.finishCelebration();
+      }
+      // Complete milestone
+      machine.completeActiveCard();
+      machine.finishCelebration();
+
+      expect(machine.getState().frontierIndex).toBe(initialTotal);
+
+      // Complete cards 0, 1, 2 of batch 1
+      for (let i = 0; i < 3; i++) {
+        machine.completeActiveCard();
+        machine.finishCelebration();
+      }
+
+      // Now on card 3 of batch 1 (mastery-batch-1-decodable-story, the current end of cards)
+      expect(machine.getState().activeIndex).toBe(initialTotal + 3);
+      expect(machine.getState().cards.length).toBe(initialTotal + 4);
+
+      // Completing the final card of batch 1 triggers auto-generation of batch 2
+      machine.completeActiveCard();
+      expect(machine.getState().cards.length).toBe(initialTotal + 8);
+      expect(machine.getState().cards[initialTotal + 4].id).toBe('mastery-batch-2-bubble-pop');
+
+      machine.finishCelebration();
+      expect(machine.getState().frontierIndex).toBe(initialTotal + 4);
+      expect(machine.getState().activeIndex).toBe(initialTotal + 4);
+    });
+
+    it('supports jumping the Vine Frontier directly to any Lesson 1–10 via jumpToLesson', () => {
+      const machine = createGardenStateMachine();
+
+      // Jump to Lesson 3
+      machine.jumpToLesson(3);
+      let state = machine.getState();
+      expect(state.cards[state.activeIndex].lessonNumber).toBe(3);
+      expect(state.activeIndex).toBe(state.frontierIndex);
+      // Must be the first card of Lesson 3
+      const firstL3Index = state.cards.findIndex((c) => c.lessonNumber === 3);
+      expect(state.frontierIndex).toBe(firstL3Index);
+
+      // Jump to Lesson 7
+      machine.jumpToLesson(7);
+      state = machine.getState();
+      expect(state.cards[state.activeIndex].lessonNumber).toBe(7);
+      const firstL7Index = state.cards.findIndex((c) => c.lessonNumber === 7);
+      expect(state.frontierIndex).toBe(firstL7Index);
+      expect(state.activeIndex).toBe(firstL7Index);
+    });
+
+    it('supports jumping to Mastery Stream, generating batch 1 if none exists yet', () => {
+      const machine = createGardenStateMachine();
+      const initialTotal = machine.getState().cards.length;
+
+      // Machine has not completed Lesson 10 yet
+      expect(machine.getState().cards.some((c) => c.id.startsWith('mastery-'))).toBe(false);
+
+      machine.jumpToLesson('mastery');
+      const state = machine.getState();
+      expect(state.cards.length).toBe(initialTotal + 4);
+      expect(state.cards[state.frontierIndex].id).toBe('mastery-batch-1-bubble-pop');
+      expect(state.activeIndex).toBe(state.frontierIndex);
+    });
+
+    it('resets progress back to Lesson 1 with clean state and storage', () => {
+      const mockStorage: Record<string, string> = {};
+      const storageAdapter = {
+        getItem: (k: string) => mockStorage[k] ?? null,
+        setItem: (k: string, v: string) => {
+          mockStorage[k] = v;
+        },
+        removeItem: (k: string) => {
+          delete mockStorage[k];
+        },
+        clear: () => {
+          for (const key of Object.keys(mockStorage)) delete mockStorage[key];
+        },
+        length: 0,
+        key: () => null,
+      };
+
+      const machine = createGardenStateMachine({ storage: storageAdapter });
+      machine.jumpToLesson(4);
+      machine.completeActiveCard(); // complete card at Lesson 4
+      machine.finishCelebration();
+
+      expect(machine.getState().frontierIndex).toBeGreaterThan(0);
+      expect(machine.getState().completedCardIds.length).toBeGreaterThan(0);
+
+      machine.resetProgress();
+      const resetState = machine.getState();
+      expect(resetState.frontierIndex).toBe(0);
+      expect(resetState.activeIndex).toBe(0);
+      expect(resetState.completedCardIds).toEqual([]);
+      expect(resetState.unlockedBlossoms).toEqual([]);
+      expect(resetState.unlockedCritters).toEqual([]);
+      expect(resetState.cards.length).toBe(INITIAL_CURRICULUM_CARDS.length);
+    });
+  });
 });
+
+
 

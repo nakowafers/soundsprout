@@ -1,5 +1,5 @@
 import { GardenCard, GardenSessionState, MilestoneBlossomCardData } from '../domain/types';
-import { INITIAL_CURRICULUM_CARDS } from '../domain/curriculum';
+import { INITIAL_CURRICULUM_CARDS, generateMasteryBatch } from '../domain/curriculum';
 
 export const STORAGE_KEY = 'soundsprout_garden_session_v1';
 
@@ -16,6 +16,7 @@ export interface GardenStateMachine {
   scrollTo: (targetIndex: number) => { clamped: boolean; index: number };
   returnToFrontier: () => void;
   resetProgress: () => void;
+  jumpToLesson: (target: number | 'mastery') => void;
 }
 
 interface PersistedState {
@@ -23,6 +24,7 @@ interface PersistedState {
   completedCardIds: string[];
   unlockedBlossoms: string[];
   unlockedCritters: string[];
+  masteryBatchCount?: number;
 }
 
 function resolveStorage(storageProp?: Storage): Storage | undefined {
@@ -33,10 +35,19 @@ function resolveStorage(storageProp?: Storage): Storage | undefined {
   return undefined;
 }
 
+function appendMasteryBatch(currentCards: GardenCard[]): GardenCard[] {
+  const currentCount = Math.floor(
+    currentCards.filter((c) => c.id.startsWith('mastery-batch-')).length / 4
+  );
+  const nextBatch = generateMasteryBatch(currentCount + 1);
+  return [...currentCards, ...nextBatch];
+}
+
 export function createGardenStateMachine(
   options: GardenStateMachineOptions = {}
 ): GardenStateMachine {
-  const cards = options.initialCards ?? [...INITIAL_CURRICULUM_CARDS];
+  const baseCards = options.initialCards ?? [...INITIAL_CURRICULUM_CARDS];
+  let cards = [...baseCards];
   const storage = resolveStorage(options.storage);
 
   let state: GardenSessionState = {
@@ -55,12 +66,25 @@ export function createGardenStateMachine(
       const serialized = storage.getItem(STORAGE_KEY);
       if (serialized) {
         const parsed = JSON.parse(serialized) as Partial<PersistedState>;
+        let hydratedCards = [...cards];
+        const batchCount = parsed.masteryBatchCount ?? 0;
+        for (let b = 1; b <= batchCount; b++) {
+          hydratedCards = appendMasteryBatch(hydratedCards);
+        }
+        while (
+          parsed.frontierIndex !== undefined &&
+          parsed.frontierIndex >= hydratedCards.length
+        ) {
+          hydratedCards = appendMasteryBatch(hydratedCards);
+        }
+
         const validFrontier = Math.max(
           0,
-          Math.min(parsed.frontierIndex ?? 0, cards.length - 1)
+          Math.min(parsed.frontierIndex ?? 0, hydratedCards.length - 1)
         );
         state = {
           ...state,
+          cards: hydratedCards,
           frontierIndex: validFrontier,
           activeIndex: validFrontier,
           completedCardIds: Array.isArray(parsed.completedCardIds)
@@ -84,11 +108,15 @@ export function createGardenStateMachine(
   function persist() {
     if (!storage) return;
     try {
+      const masteryBatchCount = Math.floor(
+        state.cards.filter((c) => c.id.startsWith('mastery-batch-')).length / 4
+      );
       const toSave: PersistedState = {
         frontierIndex: state.frontierIndex,
         completedCardIds: state.completedCardIds,
         unlockedBlossoms: state.unlockedBlossoms,
         unlockedCritters: state.unlockedCritters,
+        masteryBatchCount,
       };
       storage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     } catch {
@@ -141,8 +169,19 @@ export function createGardenStateMachine(
           ? state.completedCardIds
           : [...state.completedCardIds, activeCard.id];
 
+        let nextCards = state.cards;
+        // Append fresh 4-card Mastery Stream review batch when completing final Milestone Blossom
+        // or when completing the final card on the vine in Mastery Stream
+        if (
+          activeCard.id === 'lesson-10-milestone' ||
+          state.frontierIndex >= state.cards.length - 1
+        ) {
+          nextCards = appendMasteryBatch(nextCards);
+        }
+
         state = {
           ...state,
+          cards: nextCards,
           completedCardIds: completed,
           unlockedBlossoms,
           unlockedCritters,
@@ -210,9 +249,38 @@ export function createGardenStateMachine(
       }
     },
 
+    jumpToLesson: (target: number | 'mastery') => {
+      let currentCards = state.cards;
+      let targetIndex = -1;
+
+      if (target === 'mastery') {
+        const hasMastery = currentCards.some((c) => c.id.startsWith('mastery-batch-'));
+        if (!hasMastery) {
+          currentCards = appendMasteryBatch(currentCards);
+        }
+        targetIndex = currentCards.findIndex((c) => c.id.startsWith('mastery-batch-'));
+      } else {
+        targetIndex = currentCards.findIndex(
+          (c) => c.lessonNumber === target && !c.id.startsWith('mastery-batch-')
+        );
+      }
+
+      if (targetIndex !== -1) {
+        state = {
+          ...state,
+          cards: currentCards,
+          frontierIndex: targetIndex,
+          activeIndex: targetIndex,
+          isCelebrationLocked: false,
+        };
+        persist();
+        emit();
+      }
+    },
+
     resetProgress: () => {
       state = {
-        cards,
+        cards: [...baseCards],
         frontierIndex: 0,
         activeIndex: 0,
         isCelebrationLocked: false,
@@ -231,3 +299,4 @@ export function createGardenStateMachine(
     },
   };
 }
+

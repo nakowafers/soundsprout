@@ -9,3 +9,6 @@ export * from './ReturnToFrontierPill';
 export * from './GardenVineShell';
 export * from './MilestoneBlossomCard';
 export * from './GreenhouseDrawer';
+export * from './ParentGateButton';
+export * from './EducatorModal';
+
