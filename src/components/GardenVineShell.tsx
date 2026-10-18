@@ -1,10 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GardenStateMachine } from '../state/gardenStateMachine';
 import { AudioPort } from '../audio/audioPort';
-import { GardenSessionState, LetterCardData, MilestoneBlossomCardData } from '../domain/types';
+import {
+  GardenSessionState,
+  LetterCardData,
+  MilestoneBlossomCardData,
+  BlendingWordCardData,
+} from '../domain/types';
 import { LetterCard } from './LetterCard';
 import { MilestoneBlossomCard } from './MilestoneBlossomCard';
 import { GreenhouseDrawer } from './GreenhouseDrawer';
+import { BlendingWordCard } from './BlendingWordCard';
 import { ReturnToFrontierPill } from './ReturnToFrontierPill';
 import { CelebrationOverlay } from './CelebrationOverlay';
 
@@ -253,6 +259,15 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
             <LetterCard
               key={activeCard.id}
               card={activeCard as LetterCardData}
+              audioPort={audioPort}
+              onComplete={handleCardComplete}
+              isCompleted={isCurrentCardCompleted}
+            />
+          )}
+          {activeCard && activeCard.type === 'blending-word' && (
+            <BlendingWordCard
+              key={activeCard.id}
+              card={activeCard as BlendingWordCardData}
               audioPort={audioPort}
               onComplete={handleCardComplete}
               isCompleted={isCurrentCardCompleted}

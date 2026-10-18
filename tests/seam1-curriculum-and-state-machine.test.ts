@@ -40,6 +40,131 @@ describe('Seam 1 — Pure UFLI Curriculum & Garden State Machine Seam', () => {
         kidPrompt: 'Tap the tip of your tongue behind your top teeth: /t/!',
       });
     });
+
+    it('provides articulatory cues for UFLI Lessons 6–9 phonemes (/p/, /f/, /ĭ/, /n/)', () => {
+      expect(getArticulatoryCue('p')).toEqual({
+        mouthState: 'lip-pop',
+        kidPrompt: 'Pop your lips together with a burst of air: /p/!',
+      });
+      expect(getArticulatoryCue('f')).toEqual({
+        mouthState: 'lip-bite-air',
+        kidPrompt: 'Rest your top teeth on your bottom lip and blow: /fff/!',
+      });
+      expect(getArticulatoryCue('ĭ')).toEqual({
+        mouthState: 'smile-short-i',
+        kidPrompt: 'Make a little smile with your mouth open: /ĭĭĭ/!',
+      });
+      expect(getArticulatoryCue('n')).toEqual({
+        mouthState: 'tongue-hum',
+        kidPrompt: 'Press your tongue to the roof of your mouth and hum: /nnn/!',
+      });
+    });
+  });
+
+  describe('UFLI Lessons 1–10 Cumulative Decodability & Card Generation Invariants (ADR-0003)', () => {
+    it('covers all Lessons 1 through 10 in the initial curriculum', () => {
+      const lessonNumbers = new Set(INITIAL_CURRICULUM_CARDS.map((c) => c.lessonNumber));
+      for (let i = 1; i <= 10; i++) {
+        expect(lessonNumbers.has(i)).toBe(true);
+      }
+    });
+
+    it('ensures Lesson 1 omits Blending Word cards because zero consonants are taught yet', () => {
+      const lesson1Cards = INITIAL_CURRICULUM_CARDS.filter((c) => c.lessonNumber === 1);
+      const blendingCards = lesson1Cards.filter((c) => c.type === 'blending-word');
+      expect(blendingCards).toHaveLength(0);
+
+      const letterCards = lesson1Cards.filter((c) => c.type === 'letter');
+      expect(letterCards).toHaveLength(1);
+      expect((letterCards[0] as any).grapheme).toBe('a');
+      expect((letterCards[0] as any).phonemeClassification).toBe('continuous');
+      expect((letterCards[0] as any).holdDurationMs).toBe(1200);
+    });
+
+    it('ensures Consolidation Lessons 5 and 10 omit Letter Cards and generate multi-word Blending practice', () => {
+      for (const lessonNum of [5, 10]) {
+        const lessonCards = INITIAL_CURRICULUM_CARDS.filter((c) => c.lessonNumber === lessonNum);
+        const letterCards = lessonCards.filter((c) => c.type === 'letter');
+        const blendingCards = lessonCards.filter((c) => c.type === 'blending-word');
+
+        // Consolidation lessons must omit new letter introductions
+        expect(letterCards).toHaveLength(0);
+        // Consolidation lessons must generate multi-word blending practice
+        expect(blendingCards.length).toBeGreaterThanOrEqual(3);
+      }
+    });
+
+    it('ensures non-consolidation Lessons (1, 2, 3, 4, 6, 7, 8, 9) introduce exactly one Letter Card with valid physics', () => {
+      const expectedLetters: Record<number, { letter: string; classification: string; taps?: number; hold?: number }> = {
+        1: { letter: 'a', classification: 'continuous', hold: 1200 },
+        2: { letter: 'm', classification: 'continuous', hold: 1200 },
+        3: { letter: 's', classification: 'continuous', hold: 1200 },
+        4: { letter: 't', classification: 'stop', taps: 3 },
+        6: { letter: 'p', classification: 'stop', taps: 3 },
+        7: { letter: 'f', classification: 'continuous', hold: 1200 },
+        8: { letter: 'i', classification: 'continuous', hold: 1200 },
+        9: { letter: 'n', classification: 'continuous', hold: 1200 },
+      };
+
+      for (const [lessonStr, expected] of Object.entries(expectedLetters)) {
+        const lessonNum = Number(lessonStr);
+        const lessonCards = INITIAL_CURRICULUM_CARDS.filter((c) => c.lessonNumber === lessonNum);
+        const letterCards = lessonCards.filter((c) => c.type === 'letter');
+
+        expect(letterCards).toHaveLength(1);
+        const card = letterCards[0] as any;
+        expect(card.grapheme).toBe(expected.letter);
+        expect(card.phonemeClassification).toBe(expected.classification);
+        if (expected.classification === 'continuous') {
+          expect(card.holdDurationMs).toBe(expected.hold);
+        } else {
+          expect(card.seedPodTapsRequired).toBe(expected.taps);
+        }
+      }
+    });
+
+    it('strictly satisfies cumulative decodability across all Blending Words in Lessons 1–10', () => {
+      const cumulativeGraphemes = new Set<string>();
+
+      for (let lesson = 1; lesson <= 10; lesson++) {
+        const lessonCards = INITIAL_CURRICULUM_CARDS.filter((c) => c.lessonNumber === lesson);
+        const letterCards = lessonCards.filter((c) => c.type === 'letter');
+
+        // Add newly introduced grapheme if not a consolidation lesson
+        for (const lCard of letterCards) {
+          cumulativeGraphemes.add((lCard as any).grapheme.toLowerCase());
+        }
+
+        const blendingCards = lessonCards.filter((c) => c.type === 'blending-word');
+        for (const bCard of blendingCards) {
+          const card = bCard as any;
+          // Every grapheme in the word must exist in the cumulative set
+          for (const g of card.graphemes) {
+            expect(cumulativeGraphemes.has(g.toLowerCase())).toBe(true);
+          }
+        }
+      }
+    });
+
+    it('includes required target blending words for Lessons 2–10', () => {
+      const getWordsForLesson = (lesson: number) =>
+        INITIAL_CURRICULUM_CARDS.filter(
+          (c) => c.lessonNumber === lesson && c.type === 'blending-word'
+        ).map((c: any) => c.word);
+
+      expect(getWordsForLesson(2)).toEqual(expect.arrayContaining(['am']));
+      expect(getWordsForLesson(3)).toEqual(expect.arrayContaining(['Sam', 'am']));
+      expect(getWordsForLesson(4)).toEqual(expect.arrayContaining(['at', 'sat', 'mat']));
+      expect(getWordsForLesson(6)).toEqual(expect.arrayContaining(['pat', 'tap', 'sap', 'map']));
+      expect(getWordsForLesson(7)).toEqual(expect.arrayContaining(['fat']));
+      expect(getWordsForLesson(8)).toEqual(
+        expect.arrayContaining(['it', 'sit', 'pit', 'fit', 'sip', 'tip'])
+      );
+      expect(getWordsForLesson(9)).toEqual(
+        expect.arrayContaining(['in', 'pin', 'tin', 'fin', 'nap', 'pan', 'tan', 'man', 'fan'])
+      );
+      expect(getWordsForLesson(10).length).toBeGreaterThanOrEqual(5);
+    });
   });
 
   describe('Garden Vine & Vine Frontier State Machine Invariants', () => {

@@ -87,6 +87,58 @@ body {
   transform: scale(0.96);
 }
 
+/* Blending Word Card Animations */
+@keyframes graphemePulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(76, 175, 80, 0.4);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 18px rgba(76, 175, 80, 0.6);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(76, 175, 80, 0.4);
+  }
+}
+
+.grapheme-pulse {
+  animation: graphemePulse 1.2s ease-in-out infinite;
+}
+
+@keyframes graphemeWobble {
+  0% { transform: rotate(0deg); }
+  20% { transform: rotate(-7deg) scale(1.05); }
+  40% { transform: rotate(7deg) scale(1.05); }
+  60% { transform: rotate(-4deg); }
+  80% { transform: rotate(4deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.grapheme-wobble {
+  animation: graphemeWobble 0.45s ease-in-out;
+}
+
+@keyframes illustrationPop {
+  0% {
+    transform: scale(0.7) translateY(12px);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08) translateY(-4px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.word-illustration-container {
+  animation: illustrationPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
 /* Greenhouse Drawer Terrarium & Milestone Animations */
 @keyframes slideUp {
   from {
@@ -119,4 +171,3 @@ body {
     transform: scale(1);
   }
 }
-

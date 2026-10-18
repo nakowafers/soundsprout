@@ -1,4 +1,5 @@
 export * from './LetterCard';
+export * from './BlendingWordCard';
 export * from './SproutMouthAvatar';
 export * from './CelebrationOverlay';
 export * from './ReturnToFrontierPill';

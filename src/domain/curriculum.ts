@@ -1,5 +1,7 @@
 import {
   ArticulatoryCue,
+  BlendingWordCardData,
+  GardenCard,
   LetterCardData,
   MilestoneBlossomCardData,
   MouthState,
@@ -19,6 +21,13 @@ export function getPhonemeClassification(phoneme: string): PhonemeClassification
   }
   // Default to continuous if unlisted or return continuous
   return 'continuous';
+}
+
+export function getGraphemePhoneme(grapheme: string): string {
+  const g = grapheme.toLowerCase();
+  if (g === 'a') return 'ă';
+  if (g === 'i') return 'ĭ';
+  return g;
 }
 
 export const ARTICULATORY_CUES: Record<string, ArticulatoryCue> = {
@@ -110,158 +119,141 @@ export const MILESTONE_DEFINITIONS: MilestoneBlossomDef[] = [
   },
 ];
 
-export const INITIAL_CURRICULUM_CARDS = [
-  {
-    id: 'lesson-1-letter-a',
-    lessonNumber: 1,
-    type: 'letter' as const,
-    title: 'Letter a',
-    grapheme: 'a',
-    uppercase: 'A',
-    phoneme: 'ă',
-    phonemeClassification: 'continuous' as PhonemeClassification,
-    articulatoryCue: getArticulatoryCue('ă'),
-    holdDurationMs: 1200,
-  },
-  {
-    id: 'lesson-2-letter-m',
-    lessonNumber: 2,
-    type: 'letter' as const,
-    title: 'Letter m',
-    grapheme: 'm',
-    uppercase: 'M',
-    phoneme: 'm',
-    phonemeClassification: 'continuous' as PhonemeClassification,
-    articulatoryCue: getArticulatoryCue('m'),
-    holdDurationMs: 1200,
-  },
-  {
-    id: 'lesson-3-letter-s',
-    lessonNumber: 3,
-    type: 'letter' as const,
-    title: 'Letter s',
-    grapheme: 's',
-    uppercase: 'S',
-    phoneme: 's',
-    phonemeClassification: 'continuous' as PhonemeClassification,
-    articulatoryCue: getArticulatoryCue('s'),
-    holdDurationMs: 1200,
-  },
-  {
-    id: 'lesson-4-letter-t',
-    lessonNumber: 4,
-    type: 'letter' as const,
-    title: 'Letter t',
-    grapheme: 't',
-    uppercase: 'T',
-    phoneme: 't',
-    phonemeClassification: 'stop' as PhonemeClassification,
-    articulatoryCue: getArticulatoryCue('t'),
-    seedPodTapsRequired: 3,
-  },
-  {
-    id: 'lesson-4-milestone',
-    lessonNumber: 4,
-    type: 'milestone-blossom' as const,
-    title: 'Sunburst Daisy & Ladybug Lou',
-    blossomName: 'Sunburst Daisy',
-    critterName: 'Ladybug Lou',
-  },
-  {
-    id: 'lesson-5-consolidation',
-    lessonNumber: 5,
-    type: 'letter' as const,
-    title: 'Lesson 5 Review',
-    grapheme: 'am',
-    uppercase: 'AM',
-    phoneme: 'ă',
-    phonemeClassification: 'continuous' as PhonemeClassification,
-    articulatoryCue: getArticulatoryCue('ă'),
-    holdDurationMs: 1200,
-  },
-  {
-    id: 'lesson-5-milestone',
-    lessonNumber: 5,
-    type: 'milestone-blossom' as const,
-    title: 'Dewdrop Tulip & Pip the Caterpillar',
-    blossomName: 'Dewdrop Tulip',
-    critterName: 'Pip the Caterpillar',
-  },
-  {
-    id: 'lesson-6-letter-p',
-    lessonNumber: 6,
-    type: 'letter' as const,
-    title: 'Letter p',
-    grapheme: 'p',
-    uppercase: 'P',
-    phoneme: 'p',
-    phonemeClassification: 'stop' as PhonemeClassification,
-    articulatoryCue: getArticulatoryCue('p'),
-    seedPodTapsRequired: 3,
-  },
-  {
-    id: 'lesson-7-letter-f',
-    lessonNumber: 7,
-    type: 'letter' as const,
-    title: 'Letter f',
-    grapheme: 'f',
-    uppercase: 'F',
-    phoneme: 'f',
-    phonemeClassification: 'continuous' as PhonemeClassification,
-    articulatoryCue: getArticulatoryCue('f'),
-    holdDurationMs: 1200,
-  },
-  {
-    id: 'lesson-8-letter-i',
-    lessonNumber: 8,
-    type: 'letter' as const,
-    title: 'Letter i',
-    grapheme: 'i',
-    uppercase: 'I',
-    phoneme: 'ĭ',
-    phonemeClassification: 'continuous' as PhonemeClassification,
-    articulatoryCue: getArticulatoryCue('ĭ'),
-    holdDurationMs: 1200,
-  },
-  {
-    id: 'lesson-8-milestone',
-    lessonNumber: 8,
-    type: 'milestone-blossom' as const,
-    title: 'Berry Blossom & Sunny the Honeybee',
-    blossomName: 'Berry Blossom',
-    critterName: 'Sunny the Honeybee',
-  },
-  {
-    id: 'lesson-9-letter-n',
-    lessonNumber: 9,
-    type: 'letter' as const,
-    title: 'Letter n',
-    grapheme: 'n',
-    uppercase: 'N',
-    phoneme: 'n',
-    phonemeClassification: 'continuous' as PhonemeClassification,
-    articulatoryCue: getArticulatoryCue('n'),
-    holdDurationMs: 1200,
-  },
-  {
-    id: 'lesson-10-consolidation',
-    lessonNumber: 10,
-    type: 'letter' as const,
-    title: 'Lesson 10 Review',
-    grapheme: 'in',
-    uppercase: 'IN',
-    phoneme: 'ĭ',
-    phonemeClassification: 'continuous' as PhonemeClassification,
-    articulatoryCue: getArticulatoryCue('ĭ'),
-    holdDurationMs: 1200,
-  },
-  {
-    id: 'lesson-10-milestone',
-    lessonNumber: 10,
-    type: 'milestone-blossom' as const,
-    title: 'Golden Sunflower & Flutter the Butterfly',
-    blossomName: 'Golden Sunflower',
-    critterName: 'Flutter the Butterfly',
-  },
-] satisfies (LetterCardData | MilestoneBlossomCardData)[];
+export function createLetterCard(
+  lessonNumber: number,
+  grapheme: string,
+  phoneme: string,
+  classification: PhonemeClassification,
+  options: {
+    holdDurationMs?: number;
+    seedPodTapsRequired?: number;
+    uppercase?: string;
+  } = {}
+): LetterCardData {
+  return {
+    id: `lesson-${lessonNumber}-letter-${grapheme.toLowerCase()}`,
+    lessonNumber,
+    type: 'letter',
+    title: `Letter ${grapheme}`,
+    grapheme,
+    uppercase: options.uppercase ?? grapheme.toUpperCase(),
+    phoneme,
+    phonemeClassification: classification,
+    articulatoryCue: getArticulatoryCue(phoneme),
+    holdDurationMs:
+      classification === 'continuous' ? (options.holdDurationMs ?? 1200) : undefined,
+    seedPodTapsRequired:
+      classification === 'stop' ? (options.seedPodTapsRequired ?? 3) : undefined,
+  };
+}
 
+export function createBlendingWordCard(
+  lessonNumber: number,
+  word: string,
+  graphemes: string[],
+  illustration?: string
+): BlendingWordCardData {
+  return {
+    id: `lesson-${lessonNumber}-blend-${word.toLowerCase()}`,
+    lessonNumber,
+    type: 'blending-word',
+    title: `Blend: ${word}`,
+    word,
+    graphemes,
+    illustration,
+  };
+}
+
+export function createMilestoneBlossomCard(
+  lessonNumber: number,
+  blossomName: string,
+  critterName: string
+): MilestoneBlossomCardData {
+  return {
+    id: `lesson-${lessonNumber}-milestone`,
+    lessonNumber,
+    type: 'milestone-blossom',
+    title: `${blossomName} & ${critterName}`,
+    blossomName,
+    critterName,
+  };
+}
+
+export const INITIAL_CURRICULUM_CARDS: GardenCard[] = [
+  // Lesson 1: a /ă/ (Continuous — omits Blending Word cards)
+  createLetterCard(1, 'a', 'ă', 'continuous'),
+
+  // Lesson 2: m /m/ (Continuous — blends am)
+  createLetterCard(2, 'm', 'm', 'continuous'),
+  createBlendingWordCard(2, 'am', ['a', 'm'], '🌟'),
+
+  // Lesson 3: s /s/ (Continuous — blends Sam, am)
+  createLetterCard(3, 's', 's', 'continuous'),
+  createBlendingWordCard(3, 'Sam', ['S', 'a', 'm'], '👦'),
+  createBlendingWordCard(3, 'am', ['a', 'm'], '🌟'),
+
+  // Lesson 4: t /t/ (Stop — blends at, sat, mat)
+  createLetterCard(4, 't', 't', 'stop'),
+  createBlendingWordCard(4, 'at', ['a', 't'], '📍'),
+  createBlendingWordCard(4, 'sat', ['s', 'a', 't'], '🪑'),
+  createBlendingWordCard(4, 'mat', ['m', 'a', 't'], '🧶'),
+  // Lesson 4 Checkpoint: Sunburst Daisy & Ladybug Lou
+  createMilestoneBlossomCard(4, 'Sunburst Daisy', 'Ladybug Lou'),
+
+  // Lesson 5: VC/CVC Consolidation (a, m, s, t — omits Letter Card, multi-word blending)
+  createBlendingWordCard(5, 'at', ['a', 't'], '📍'),
+  createBlendingWordCard(5, 'am', ['a', 'm'], '🌟'),
+  createBlendingWordCard(5, 'sat', ['s', 'a', 't'], '🪑'),
+  createBlendingWordCard(5, 'mat', ['m', 'a', 't'], '🧶'),
+  createBlendingWordCard(5, 'Sam', ['S', 'a', 'm'], '👦'),
+  // Lesson 5 Checkpoint: Dewdrop Tulip & Pip the Caterpillar
+  createMilestoneBlossomCard(5, 'Dewdrop Tulip', 'Pip the Caterpillar'),
+
+  // Lesson 6: p /p/ (Stop — blends pat, tap, sap, map)
+  createLetterCard(6, 'p', 'p', 'stop'),
+  createBlendingWordCard(6, 'pat', ['p', 'a', 't'], '👋'),
+  createBlendingWordCard(6, 'tap', ['t', 'a', 'p'], '🚰'),
+  createBlendingWordCard(6, 'sap', ['s', 'a', 'p'], '🍁'),
+  createBlendingWordCard(6, 'map', ['m', 'a', 'p'], '🗺️'),
+
+  // Lesson 7: f /f/ (Continuous — blends fat)
+  createLetterCard(7, 'f', 'f', 'continuous'),
+  createBlendingWordCard(7, 'fat', ['f', 'a', 't'], '🐱'),
+
+  // Lesson 8: i /ĭ/ (Continuous — blends it, sit, pit, fit, sip, tip)
+  createLetterCard(8, 'i', 'ĭ', 'continuous'),
+  createBlendingWordCard(8, 'it', ['i', 't'], '👉'),
+  createBlendingWordCard(8, 'sit', ['s', 'i', 't'], '🪑'),
+  createBlendingWordCard(8, 'pit', ['p', 'i', 't'], '🕳️'),
+  createBlendingWordCard(8, 'fit', ['f', 'i', 't'], '🧩'),
+  createBlendingWordCard(8, 'sip', ['s', 'i', 'p'], '🥤'),
+  createBlendingWordCard(8, 'tip', ['t', 'i', 'p'], '💡'),
+  // Lesson 8 Checkpoint: Berry Blossom & Sunny the Honeybee
+  createMilestoneBlossomCard(8, 'Berry Blossom', 'Sunny the Honeybee'),
+
+  // Lesson 9: n /n/ (Continuous — blends in, pin, tin, fin, nap, pan, tan, man, fan)
+  createLetterCard(9, 'n', 'n', 'continuous'),
+  createBlendingWordCard(9, 'in', ['i', 'n'], '📥'),
+  createBlendingWordCard(9, 'pin', ['p', 'i', 'n'], '📌'),
+  createBlendingWordCard(9, 'tin', ['t', 'i', 'n'], '🥫'),
+  createBlendingWordCard(9, 'fin', ['f', 'i', 'n'], '🦈'),
+  createBlendingWordCard(9, 'nap', ['n', 'a', 'p'], '😴'),
+  createBlendingWordCard(9, 'pan', ['p', 'a', 'n'], '🍳'),
+  createBlendingWordCard(9, 'tan', ['t', 'a', 'n'], '☀️'),
+  createBlendingWordCard(9, 'man', ['m', 'a', 'n'], '👨'),
+  createBlendingWordCard(9, 'fan', ['f', 'a', 'n'], '🪭'),
+
+  // Lesson 10: CVC Consolidation (a, i with m, s, t, p, f, n — omits Letter Card, multi-word blending)
+  createBlendingWordCard(10, 'fit', ['f', 'i', 't'], '🧩'),
+  createBlendingWordCard(10, 'map', ['m', 'a', 'p'], '🗺️'),
+  createBlendingWordCard(10, 'pin', ['p', 'i', 'n'], '📌'),
+  createBlendingWordCard(10, 'tap', ['t', 'a', 'p'], '🚰'),
+  createBlendingWordCard(10, 'sit', ['s', 'i', 't'], '🪑'),
+  createBlendingWordCard(10, 'pan', ['p', 'a', 'n'], '🍳'),
+  createBlendingWordCard(10, 'fan', ['f', 'a', 'n'], '🪭'),
+  createBlendingWordCard(10, 'tin', ['t', 'i', 'n'], '🥫'),
+  createBlendingWordCard(10, 'mat', ['m', 'a', 't'], '🧶'),
+  createBlendingWordCard(10, 'pat', ['p', 'a', 't'], '👋'),
+  // Lesson 10 Checkpoint: Golden Sunflower & Flutter the Butterfly
+  createMilestoneBlossomCard(10, 'Golden Sunflower', 'Flutter the Butterfly'),
+];
