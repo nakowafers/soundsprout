@@ -86,3 +86,41 @@ body {
 .return-frontier-pill:active {
   transform: scale(0.96);
 }
+
+/* Phoneme Bubble Pop Card Animations */
+@keyframes bubbleWobble {
+  0% { transform: scale(1) rotate(0deg); }
+  20% { transform: scale(0.96) rotate(-12deg); }
+  40% { transform: scale(0.96) rotate(10deg); }
+  60% { transform: scale(0.98) rotate(-6deg); }
+  80% { transform: scale(0.99) rotate(4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.bubble-wobble {
+  animation: bubbleWobble 0.45s ease-in-out;
+}
+
+@keyframes bubbleHintPulse {
+  0% {
+    box-shadow: 0 0 12px 2px #FFD700, 0 4px 10px rgba(255, 215, 0, 0.4);
+    transform: scale(1.04);
+  }
+  50% {
+    box-shadow: 0 0 24px 8px #FFD700, 0 6px 16px rgba(255, 215, 0, 0.6);
+    transform: scale(1.1);
+  }
+  100% {
+    box-shadow: 0 0 12px 2px #FFD700, 0 4px 10px rgba(255, 215, 0, 0.4);
+    transform: scale(1.04);
+  }
+}
+
+.bubble-hint-glow {
+  animation: bubbleHintPulse 1.2s infinite ease-in-out;
+}
+
+.bubble-pop-card-bloomed {
+  filter: drop-shadow(0 0 16px rgba(129, 199, 132, 0.6));
+}
+

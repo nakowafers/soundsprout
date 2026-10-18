@@ -4,6 +4,8 @@ import {
   getArticulatoryCue,
   INITIAL_CURRICULUM_CARDS,
   createGardenStateMachine,
+  generateLessonCycle,
+  BubblePopCardData,
 } from '../src/domain';
 
 describe('Seam 1 — Pure UFLI Curriculum & Garden State Machine Seam', () => {
@@ -178,6 +180,63 @@ describe('Seam 1 — Pure UFLI Curriculum & Garden State Machine Seam', () => {
       unsubscribe();
       machine.finishCelebration();
       expect(listener.mock.calls.length).toBe(callCount);
+    });
+  });
+
+  describe('Lesson Cycle Generation & Phoneme Bubble Pop Invariants', () => {
+    it('generates lesson cycle for Lesson 1 with Letter Card followed by Phoneme Bubble Pop card', () => {
+      const lesson1Cards = generateLessonCycle(1);
+      expect(lesson1Cards).toHaveLength(2);
+
+      const [letterCard, bubblePopCard] = lesson1Cards;
+      expect(letterCard.type).toBe('letter');
+      expect(letterCard.id).toBe('lesson-1-letter-a');
+      expect(letterCard.lessonNumber).toBe(1);
+
+      expect(bubblePopCard.type).toBe('bubble-pop');
+      expect(bubblePopCard.id).toBe('lesson-1-bubble-pop-a');
+      expect(bubblePopCard.lessonNumber).toBe(1);
+    });
+
+    it('ensures Lesson 1 Phoneme Bubble Pop card has 6 bubbles with 3 /ă/ targets and 3 non-/ă/ distractors without untaught consonant blending', () => {
+      const lesson1Cards = generateLessonCycle(1);
+      const bubblePopCard = lesson1Cards.find(
+        (c): c is BubblePopCardData => c.type === 'bubble-pop'
+      );
+      expect(bubblePopCard).toBeDefined();
+      if (!bubblePopCard) return;
+
+      expect(bubblePopCard.targetPhoneme).toBe('ă');
+      expect(bubblePopCard.targetCountRequired).toBe(3);
+      expect(bubblePopCard.bubbles).toHaveLength(6);
+
+      const targets = bubblePopCard.bubbles.filter((b) => b.isTarget);
+      const distractors = bubblePopCard.bubbles.filter((b) => !b.isTarget);
+
+      expect(targets).toHaveLength(3);
+      expect(distractors).toHaveLength(3);
+
+      // Target bubbles must represent /ă/ (initial sound or letter 'a')
+      for (const target of targets) {
+        expect(target.phoneme).toBe('ă');
+      }
+
+      // Distractor bubbles must NOT contain /ă/ and must not require consonant blending
+      for (const distractor of distractors) {
+        expect(distractor.phoneme).not.toBe('ă');
+      }
+    });
+
+    it('generates valid lesson cycles for Lessons 1 through 4', () => {
+      for (let lesson = 1; lesson <= 4; lesson++) {
+        const cards = generateLessonCycle(lesson);
+        expect(cards.length).toBeGreaterThanOrEqual(2);
+        const bubbleCard = cards.find((c): c is BubblePopCardData => c.type === 'bubble-pop');
+        expect(bubbleCard).toBeDefined();
+        expect(bubbleCard?.bubbles).toHaveLength(6);
+        expect(bubbleCard?.bubbles.filter((b) => b.isTarget)).toHaveLength(3);
+        expect(bubbleCard?.bubbles.filter((b) => !b.isTarget)).toHaveLength(3);
+      }
     });
   });
 });

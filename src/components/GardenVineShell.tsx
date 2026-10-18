@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GardenStateMachine } from '../state/gardenStateMachine';
 import { AudioPort } from '../audio/audioPort';
-import { GardenSessionState, LetterCardData } from '../domain/types';
+import { GardenSessionState, LetterCardData, BubblePopCardData } from '../domain/types';
 import { LetterCard } from './LetterCard';
+import { PhonemeBubblePopCard } from './PhonemeBubblePopCard';
 import { ReturnToFrontierPill } from './ReturnToFrontierPill';
 import { CelebrationOverlay } from './CelebrationOverlay';
 
@@ -207,6 +208,14 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
           {activeCard && activeCard.type === 'letter' && (
             <LetterCard
               card={activeCard as LetterCardData}
+              audioPort={audioPort}
+              onComplete={handleCardComplete}
+              isCompleted={isCurrentCardCompleted}
+            />
+          )}
+          {activeCard && activeCard.type === 'bubble-pop' && (
+            <PhonemeBubblePopCard
+              card={activeCard as BubblePopCardData}
               audioPort={audioPort}
               onComplete={handleCardComplete}
               isCompleted={isCurrentCardCompleted}

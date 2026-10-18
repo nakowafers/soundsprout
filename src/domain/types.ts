@@ -41,10 +41,20 @@ export interface LetterCardData extends BaseCardData {
   seedPodTapsRequired?: number; // 3 default for stop
 }
 
-// Extensible placeholders for future ticket types
+export interface BubbleItem {
+  id: string;
+  label: string;
+  phoneme: string;
+  isTarget: boolean;
+  type?: 'letter' | 'picture';
+  accessibleDescription?: string;
+}
+
 export interface BubblePopCardData extends BaseCardData {
   type: 'bubble-pop';
   targetPhoneme: string;
+  promptText?: string;
+  bubbles: BubbleItem[];
   distractors: string[];
   targetCountRequired: number;
 }
