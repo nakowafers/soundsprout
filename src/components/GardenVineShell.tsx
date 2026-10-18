@@ -7,12 +7,16 @@ import {
   MilestoneBlossomCardData,
   BlendingWordCardData,
   BubblePopCardData,
+  HeartWordCardData,
+  DecodableStoryCardData,
 } from '../domain/types';
 import { LetterCard } from './LetterCard';
 import { MilestoneBlossomCard } from './MilestoneBlossomCard';
 import { GreenhouseDrawer } from './GreenhouseDrawer';
 import { BlendingWordCard } from './BlendingWordCard';
 import { PhonemeBubblePopCard } from './PhonemeBubblePopCard';
+import { HeartWordCard } from './HeartWordCard';
+import { DecodableStoryCard } from './DecodableStoryCard';
 import { ReturnToFrontierPill } from './ReturnToFrontierPill';
 import { CelebrationOverlay } from './CelebrationOverlay';
 
@@ -279,6 +283,24 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
             <PhonemeBubblePopCard
               key={activeCard.id}
               card={activeCard as BubblePopCardData}
+              audioPort={audioPort}
+              onComplete={handleCardComplete}
+              isCompleted={isCurrentCardCompleted}
+            />
+          )}
+          {activeCard && activeCard.type === 'heart-word' && (
+            <HeartWordCard
+              key={activeCard.id}
+              card={activeCard as HeartWordCardData}
+              audioPort={audioPort}
+              onComplete={handleCardComplete}
+              isCompleted={isCurrentCardCompleted}
+            />
+          )}
+          {activeCard && activeCard.type === 'decodable-story' && (
+            <DecodableStoryCard
+              key={activeCard.id}
+              card={activeCard as DecodableStoryCardData}
               audioPort={audioPort}
               onComplete={handleCardComplete}
               isCompleted={isCurrentCardCompleted}

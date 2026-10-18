@@ -3,6 +3,8 @@ import {
   BlendingWordCardData,
   BubblePopCardData,
   GardenCard,
+  HeartWordCardData,
+  DecodableStoryCardData,
   LetterCardData,
   MilestoneBlossomCardData,
   MouthState,
@@ -162,6 +164,41 @@ export function createBlendingWordCard(
     word,
     graphemes,
     illustration,
+  };
+}
+
+export function createHeartWordCard(
+  lessonNumber: number,
+  word: string,
+  parts: { grapheme: string; isHeart: boolean; phoneme: string }[]
+): HeartWordCardData {
+  return {
+    id: `lesson-${lessonNumber}-heart-${word.toLowerCase().replace(/[^a-z]/g, '')}`,
+    lessonNumber,
+    type: 'heart-word',
+    title: `Heart Word: ${word}`,
+    word,
+    parts,
+  };
+}
+
+export function createDecodableStoryCard(
+  lessonNumber: number,
+  sentence: string,
+  words: string[]
+): DecodableStoryCardData {
+  const slug = sentence
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 24);
+  return {
+    id: `lesson-${lessonNumber}-story-${slug}`,
+    lessonNumber,
+    type: 'decodable-story',
+    title: `Story: ${sentence}`,
+    sentence,
+    words,
   };
 }
 
@@ -444,6 +481,39 @@ export const MILESTONE_CARDS: Record<number, MilestoneBlossomCardData> = {
   10: createMilestoneBlossomCard(10, 'Golden Sunflower', 'Flutter the Butterfly'),
 };
 
+export const HEART_WORD_CARDS: Record<number, HeartWordCardData> = {
+  3: createHeartWordCard(3, 'I', [{ grapheme: 'I', isHeart: true, phoneme: 'ī' }]),
+  4: createHeartWordCard(4, 'a', [{ grapheme: 'a', isHeart: true, phoneme: 'uh' }]),
+  5: createHeartWordCard(5, 'the', [
+    { grapheme: 'th', isHeart: false, phoneme: 'th' },
+    { grapheme: 'e', isHeart: true, phoneme: 'uh' },
+  ]),
+  7: createHeartWordCard(7, 'to', [
+    { grapheme: 't', isHeart: false, phoneme: 't' },
+    { grapheme: 'o', isHeart: true, phoneme: 'oo' },
+  ]),
+  8: createHeartWordCard(8, 'is', [
+    { grapheme: 'i', isHeart: false, phoneme: 'ĭ' },
+    { grapheme: 's', isHeart: true, phoneme: 'z' },
+  ]),
+  9: createHeartWordCard(9, 'said', [
+    { grapheme: 's', isHeart: false, phoneme: 's' },
+    { grapheme: 'ai', isHeart: true, phoneme: 'ĕ' },
+    { grapheme: 'd', isHeart: false, phoneme: 'd' },
+  ]),
+};
+
+export const DECODABLE_STORY_CARDS: Record<number, DecodableStoryCardData> = {
+  3: createDecodableStoryCard(3, 'I am Sam.', ['I', 'am', 'Sam']),
+  4: createDecodableStoryCard(4, 'Sam sat at a mat.', ['Sam', 'sat', 'at', 'a', 'mat']),
+  5: createDecodableStoryCard(5, 'Sam sat at the mat.', ['Sam', 'sat', 'at', 'the', 'mat']),
+  6: createDecodableStoryCard(6, 'Pat sat at a map.', ['Pat', 'sat', 'at', 'a', 'map']),
+  7: createDecodableStoryCard(7, 'Sam sat at a fat mat.', ['Sam', 'sat', 'at', 'a', 'fat', 'mat']),
+  8: createDecodableStoryCard(8, 'Sam is at the pit.', ['Sam', 'is', 'at', 'the', 'pit']),
+  9: createDecodableStoryCard(9, 'Pam sat in a tin pan.', ['Pam', 'sat', 'in', 'a', 'tin', 'pan']),
+  10: createDecodableStoryCard(10, 'I said it is a fan.', ['I', 'said', 'it', 'is', 'a', 'fan']),
+};
+
 export function generateLessonCycle(lessonNumber: number): GardenCard[] {
   const cards: GardenCard[] = [];
   const letterCard = LETTER_CARDS[lessonNumber];
@@ -457,6 +527,14 @@ export function generateLessonCycle(lessonNumber: number): GardenCard[] {
   const blendingCards = BLENDING_WORD_CARDS[lessonNumber];
   if (blendingCards) {
     cards.push(...blendingCards);
+  }
+  const heartCard = HEART_WORD_CARDS[lessonNumber];
+  if (heartCard) {
+    cards.push(heartCard);
+  }
+  const storyCard = DECODABLE_STORY_CARDS[lessonNumber];
+  if (storyCard) {
+    cards.push(storyCard);
   }
   const milestoneCard = MILESTONE_CARDS[lessonNumber];
   if (milestoneCard) {
