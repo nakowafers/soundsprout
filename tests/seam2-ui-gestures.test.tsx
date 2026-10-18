@@ -3,12 +3,14 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { LetterCard } from '../src/components/LetterCard';
 import { BlendingWordCard } from '../src/components/BlendingWordCard';
+import { PhonemeBubblePopCard } from '../src/components/PhonemeBubblePopCard';
 import { GardenVineShell } from '../src/components/GardenVineShell';
 import { createStubAudioPort, StubAudioPort } from '../src/audio';
 import {
   INITIAL_CURRICULUM_CARDS,
   LetterCardData,
   BlendingWordCardData,
+  BubblePopCardData,
 } from '../src/domain';
 import { createGardenStateMachine, GardenStateMachine } from '../src/state/gardenStateMachine';
 
@@ -29,7 +31,7 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
   });
 
   describe('LetterCard: Continuous Phoneme (/ă/) Gesture Physics', () => {
-    const cardDataA: LetterCardData = INITIAL_CURRICULUM_CARDS[0]; // letter 'a', continuous
+    const cardDataA: LetterCardData = INITIAL_CURRICULUM_CARDS[0] as LetterCardData; // letter 'a', continuous
 
     it('renders oversized touch target (64px+) and graphemes with articulatory mouth cue', () => {
       const onComplete = vi.fn();
@@ -170,6 +172,175 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
     });
   });
 
+  describe('PhonemeBubblePopCard: Auditory Discrimination & No-Fail Scaffolding', () => {
+    const cardDataBubblePopA: BubblePopCardData = INITIAL_CURRICULUM_CARDS.find(
+      (c): c is BubblePopCardData => c.id === 'lesson-1-bubble-pop-a'
+    )!;
+
+    it('announces target phoneme when rendered and provides tap-to-repeat speaker prompt', () => {
+      const onComplete = vi.fn();
+      render(
+        <PhonemeBubblePopCard
+          card={cardDataBubblePopA}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      // Announces target phoneme on mount
+      expect(audioPort.playedPhonemes).toContain('ă');
+
+      // Tap-to-repeat speaker prompt
+      const repeatBtn = screen.getByTestId('repeat-speaker-button');
+      expect(repeatBtn).toBeInTheDocument();
+      expect(repeatBtn).toHaveAttribute('aria-label', expect.stringMatching(/repeat/i));
+
+      fireEvent.click(repeatBtn);
+      expect(audioPort.playedPhonemes.filter((p) => p === 'ă').length).toBe(2);
+      expect(onComplete).not.toHaveBeenCalled();
+    });
+
+    it('renders 6 floating bubbles (3 target and 3 distractor) with touch targets >= 64px', () => {
+      const onComplete = vi.fn();
+      render(
+        <PhonemeBubblePopCard
+          card={cardDataBubblePopA}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const allBubbles = screen.getAllByTestId(/^bubble-/);
+      expect(allBubbles).toHaveLength(6);
+
+      const targetBubbles = allBubbles.filter(
+        (el) => el.getAttribute('data-target') === 'true'
+      );
+      const distractorBubbles = allBubbles.filter(
+        (el) => el.getAttribute('data-target') === 'false'
+      );
+
+      expect(targetBubbles).toHaveLength(3);
+      expect(distractorBubbles).toHaveLength(3);
+
+      for (const bubble of allBubbles) {
+        expect(bubble.classList.contains('touch-target-oversized')).toBe(true);
+      }
+    });
+
+    it('tapping each target bubble plays water-drop and target phoneme audio, pops bubble, and increments water level until 3rd pop completes card', () => {
+      const onComplete = vi.fn();
+      render(
+        <PhonemeBubblePopCard
+          card={cardDataBubblePopA}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const waterLevelMeter = screen.getByTestId('sprout-water-level');
+      expect(waterLevelMeter).toHaveAttribute('data-water-level', '0');
+
+      const targetBubbles = screen
+        .getAllByTestId(/^bubble-/)
+        .filter((el) => el.getAttribute('data-target') === 'true');
+
+      // Tap 1st target
+      fireEvent.click(targetBubbles[0]);
+      expect(audioPort.waterDropCount).toBe(1);
+      expect(audioPort.playedPhonemes).toContain('ă');
+      expect(targetBubbles[0]).toHaveAttribute('data-popped', 'true');
+      expect(waterLevelMeter).toHaveAttribute('data-water-level', '1');
+      expect(onComplete).not.toHaveBeenCalled();
+
+      // Tap 2nd target
+      fireEvent.click(targetBubbles[1]);
+      expect(audioPort.waterDropCount).toBe(2);
+      expect(targetBubbles[1]).toHaveAttribute('data-popped', 'true');
+      expect(waterLevelMeter).toHaveAttribute('data-water-level', '2');
+      expect(onComplete).not.toHaveBeenCalled();
+
+      // Tap 3rd target completes card
+      fireEvent.click(targetBubbles[2]);
+      expect(audioPort.waterDropCount).toBe(3);
+      expect(targetBubbles[2]).toHaveAttribute('data-popped', 'true');
+      expect(waterLevelMeter).toHaveAttribute('data-water-level', '3');
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('No-Fail Positive Scaffolding: tapping distractor invokes playWobbleHint, wobbles without popping, preserves progress, and highlights remaining target with golden hint glow', () => {
+      const onComplete = vi.fn();
+      render(
+        <PhonemeBubblePopCard
+          card={cardDataBubblePopA}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const waterLevelMeter = screen.getByTestId('sprout-water-level');
+      const targetBubbles = screen
+        .getAllByTestId(/^bubble-/)
+        .filter((el) => el.getAttribute('data-target') === 'true');
+      const distractorBubbles = screen
+        .getAllByTestId(/^bubble-/)
+        .filter((el) => el.getAttribute('data-target') === 'false');
+
+      // Pop 1 target first so progress is 1
+      fireEvent.click(targetBubbles[0]);
+      expect(waterLevelMeter).toHaveAttribute('data-water-level', '1');
+
+      // Tap distractor bubble
+      const distractor = distractorBubbles[0];
+      fireEvent.click(distractor);
+
+      // 1. Invokes playWobbleHint (soft wooden thud)
+      expect(audioPort.wobbleHintCount).toBe(1);
+
+      // 2. Wobbles without popping
+      expect(distractor).toHaveAttribute('data-popped', 'false');
+      expect(distractor).toHaveAttribute('data-wobbling', 'true');
+
+      // 3. No failure reset: progress is preserved!
+      expect(waterLevelMeter).toHaveAttribute('data-water-level', '1');
+      expect(onComplete).not.toHaveBeenCalled();
+
+      // 4. Highlights a remaining valid target bubble with a golden hint glow
+      const hintedTargets = targetBubbles.filter(
+        (el) => el.getAttribute('data-hinted') === 'true'
+      );
+      expect(hintedTargets).toHaveLength(1);
+      expect(hintedTargets[0]).toHaveAttribute('data-popped', 'false');
+    });
+
+    it('renders bloomed completed card in full bloomed state with all targets popped and water level 3', () => {
+      const onComplete = vi.fn();
+      render(
+        <PhonemeBubblePopCard
+          card={cardDataBubblePopA}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={true}
+        />
+      );
+
+      const waterLevelMeter = screen.getByTestId('sprout-water-level');
+      expect(waterLevelMeter).toHaveAttribute('data-water-level', '3');
+
+      const targetBubbles = screen
+        .getAllByTestId(/^bubble-/)
+        .filter((el) => el.getAttribute('data-target') === 'true');
+
+      for (const target of targetBubbles) {
+        expect(target).toHaveAttribute('data-popped', 'true');
+      }
+    });
+  });
+
   describe('GardenVineShell: Viewport, Vine Frontier & Locked Celebration Auto-Advance', () => {
     let stateMachine: GardenStateMachine;
 
@@ -250,8 +421,8 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
       expect(stateMachine.getState().frontierIndex).toBe(1);
       expect(stateMachine.getState().activeIndex).toBe(1);
 
-      // Active card is now Lesson 2 'm'
-      expect(screen.getByText('Letter m')).toBeInTheDocument();
+      // Active card is now Lesson 1 Bubble Pop /ă/
+      expect(screen.getByText(/Bubble Pop: \/ă\//i)).toBeInTheDocument();
     });
 
     it('scrolling upward to a completed card reveals "Return to Frontier" and replaying blooms in-place', () => {
@@ -301,6 +472,47 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
       fireEvent.click(returnBtn);
       expect(stateMachine.getState().activeIndex).toBe(1);
       expect(screen.queryByTestId('return-to-frontier-button')).not.toBeInTheDocument();
+    });
+
+    it('completing Phoneme Bubble Pop card at Vine Frontier triggers locked celebration for 2,000ms then auto-advances to next letter card', () => {
+      // Start state machine directly at card 1 (Lesson 1 Bubble Pop /ă/) with card 0 already completed
+      const stateMachineWithProgress = createGardenStateMachine();
+      stateMachineWithProgress.completeActiveCard(); // completes card 0
+      stateMachineWithProgress.finishCelebration(); // advances to card 1
+      expect(stateMachineWithProgress.getState().activeIndex).toBe(1);
+
+      render(<GardenVineShell stateMachine={stateMachineWithProgress} audioPort={audioPort} />);
+
+      // Verify Bubble Pop card is active
+      expect(screen.getByTestId('phoneme-bubble-pop-card-root')).toBeInTheDocument();
+      expect(screen.getByText(/Bubble Pop: \/ă\//i)).toBeInTheDocument();
+
+      // Tap 3 target bubbles
+      const targetBubbles = screen
+        .getAllByTestId(/^bubble-/)
+        .filter((el) => el.getAttribute('data-target') === 'true');
+
+      fireEvent.click(targetBubbles[0]);
+      fireEvent.click(targetBubbles[1]);
+      fireEvent.click(targetBubbles[2]);
+
+      // Fanfare played
+      expect(audioPort.bloomFanfareCount).toBe(1);
+
+      // Locked celebration
+      expect(stateMachineWithProgress.getState().isCelebrationLocked).toBe(true);
+      expect(screen.getByTestId('celebration-overlay')).toBeInTheDocument();
+
+      // Advance timer by 2,000ms
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      // Unlocks and advances to card 2 (Lesson 2 Letter m)
+      expect(stateMachineWithProgress.getState().isCelebrationLocked).toBe(false);
+      expect(stateMachineWithProgress.getState().frontierIndex).toBe(2);
+      expect(stateMachineWithProgress.getState().activeIndex).toBe(2);
+      expect(screen.getByText('Letter m')).toBeInTheDocument();
     });
   });
 
@@ -509,7 +721,21 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
       });
       fireEvent.pointerUp(touchTargetA);
 
-      // Celebration auto-advances
+      // Celebration auto-advances to Lesson 1 Bubble Pop /ă/
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.getByText(/Bubble Pop: \/ă\//i)).toBeInTheDocument();
+
+      // Complete Lesson 1 Bubble Pop /ă/
+      const targetBubblesA = screen
+        .getAllByTestId(/^bubble-/)
+        .filter((el) => el.getAttribute('data-target') === 'true');
+      fireEvent.click(targetBubblesA[0]);
+      fireEvent.click(targetBubblesA[1]);
+      fireEvent.click(targetBubblesA[2]);
+
+      // Celebration auto-advances to Lesson 2 Letter 'm'
       act(() => {
         vi.advanceTimersByTime(2000);
       });
@@ -522,6 +748,20 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
         vi.advanceTimersByTime(1200);
       });
       fireEvent.pointerUp(touchTargetM);
+
+      // Celebration auto-advances to Lesson 2 Bubble Pop /m/
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.getByText(/Bubble Pop: \/m\//i)).toBeInTheDocument();
+
+      // Complete Lesson 2 Bubble Pop /m/
+      const targetBubblesM = screen
+        .getAllByTestId(/^bubble-/)
+        .filter((el) => el.getAttribute('data-target') === 'true');
+      fireEvent.click(targetBubblesM[0]);
+      fireEvent.click(targetBubblesM[1]);
+      fireEvent.click(targetBubblesM[2]);
 
       // Celebration auto-advances to Lesson 2 Blending Word 'am'
       act(() => {
