@@ -5,11 +5,13 @@ import {
   GardenSessionState,
   LetterCardData,
   BlendingWordCardData,
+  BubblePopCardData,
   HeartWordCardData,
   DecodableStoryCardData,
 } from '../domain/types';
 import { LetterCard } from './LetterCard';
 import { BlendingWordCard } from './BlendingWordCard';
+import { PhonemeBubblePopCard } from './PhonemeBubblePopCard';
 import { HeartWordCard } from './HeartWordCard';
 import { DecodableStoryCard } from './DecodableStoryCard';
 import { ReturnToFrontierPill } from './ReturnToFrontierPill';
@@ -224,6 +226,14 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
           {activeCard && activeCard.type === 'blending-word' && (
             <BlendingWordCard
               card={activeCard as BlendingWordCardData}
+              audioPort={audioPort}
+              onComplete={handleCardComplete}
+              isCompleted={isCurrentCardCompleted}
+            />
+          )}
+          {activeCard && activeCard.type === 'bubble-pop' && (
+            <PhonemeBubblePopCard
+              card={activeCard as BubblePopCardData}
               audioPort={audioPort}
               onComplete={handleCardComplete}
               isCompleted={isCurrentCardCompleted}
