@@ -5,9 +5,13 @@ import {
   GardenSessionState,
   LetterCardData,
   BlendingWordCardData,
+  HeartWordCardData,
+  DecodableStoryCardData,
 } from '../domain/types';
 import { LetterCard } from './LetterCard';
 import { BlendingWordCard } from './BlendingWordCard';
+import { HeartWordCard } from './HeartWordCard';
+import { DecodableStoryCard } from './DecodableStoryCard';
 import { ReturnToFrontierPill } from './ReturnToFrontierPill';
 import { CelebrationOverlay } from './CelebrationOverlay';
 
@@ -220,6 +224,22 @@ export const GardenVineShell: React.FC<GardenVineShellProps> = ({
           {activeCard && activeCard.type === 'blending-word' && (
             <BlendingWordCard
               card={activeCard as BlendingWordCardData}
+              audioPort={audioPort}
+              onComplete={handleCardComplete}
+              isCompleted={isCurrentCardCompleted}
+            />
+          )}
+          {activeCard && activeCard.type === 'heart-word' && (
+            <HeartWordCard
+              card={activeCard as HeartWordCardData}
+              audioPort={audioPort}
+              onComplete={handleCardComplete}
+              isCompleted={isCurrentCardCompleted}
+            />
+          )}
+          {activeCard && activeCard.type === 'decodable-story' && (
+            <DecodableStoryCard
+              card={activeCard as DecodableStoryCardData}
               audioPort={audioPort}
               onComplete={handleCardComplete}
               isCompleted={isCurrentCardCompleted}

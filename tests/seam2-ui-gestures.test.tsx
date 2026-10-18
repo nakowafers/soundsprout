@@ -3,12 +3,16 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { LetterCard } from '../src/components/LetterCard';
 import { BlendingWordCard } from '../src/components/BlendingWordCard';
+import { HeartWordCard } from '../src/components/HeartWordCard';
+import { DecodableStoryCard } from '../src/components/DecodableStoryCard';
 import { GardenVineShell } from '../src/components/GardenVineShell';
 import { createStubAudioPort, StubAudioPort } from '../src/audio';
 import {
   INITIAL_CURRICULUM_CARDS,
   LetterCardData,
   BlendingWordCardData,
+  HeartWordCardData,
+  DecodableStoryCardData,
 } from '../src/domain';
 import { createGardenStateMachine, GardenStateMachine } from '../src/state/gardenStateMachine';
 
@@ -554,6 +558,348 @@ describe('Seam 2 — UI Component & Gesture Integration Seam', () => {
       expect(stateMachine.getState().isCelebrationLocked).toBe(false);
       // Next card is Lesson 3 Letter 's'!
       expect(screen.getByText('Letter s')).toBeInTheDocument();
+    });
+
+    it('seamlessly renders HeartWordCard and DecodableStoryCard on the vine and auto-advances upon completion', () => {
+      const heartCard: HeartWordCardData = {
+        id: 'test-vine-heart-i',
+        lessonNumber: 3,
+        type: 'heart-word',
+        title: 'Heart Word: I',
+        word: 'I',
+        parts: [{ grapheme: 'I', isHeart: true, phoneme: 'ī' }],
+      };
+      const storyCard: DecodableStoryCardData = {
+        id: 'test-vine-story-sam',
+        lessonNumber: 3,
+        type: 'decodable-story',
+        title: 'Story: I am Sam.',
+        sentence: 'I am Sam.',
+        words: ['I', 'am', 'Sam'],
+      };
+
+      const customStateMachine = createGardenStateMachine({
+        initialCards: [heartCard, storyCard],
+      });
+
+      render(<GardenVineShell stateMachine={customStateMachine} audioPort={audioPort} />);
+
+      // Active card 0 is HeartWordCard
+      expect(screen.getByTestId('heart-word-card')).toBeInTheDocument();
+      expect(screen.getByText('Heart Word: I')).toBeInTheDocument();
+
+      // Tap the heart part 'I'
+      fireEvent.click(screen.getByTestId('heart-part-0'));
+      expect(audioPort.playedWords).toContain('I');
+      expect(audioPort.bloomFanfareCount).toBe(1);
+      expect(customStateMachine.getState().isCelebrationLocked).toBe(true);
+
+      // Advance celebration 2000ms
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      expect(customStateMachine.getState().isCelebrationLocked).toBe(false);
+      expect(customStateMachine.getState().activeIndex).toBe(1);
+
+      // Now at card 1: DecodableStoryCard
+      expect(screen.getByTestId('decodable-story-card')).toBeInTheDocument();
+      expect(screen.getByText('Story: I am Sam.')).toBeInTheDocument();
+
+      // Read words sequentially: 'I', 'am', 'Sam'
+      fireEvent.click(screen.getByTestId('story-word-0'));
+      fireEvent.click(screen.getByTestId('story-word-1'));
+      fireEvent.click(screen.getByTestId('story-word-2'));
+
+      // Final word and full sentence voiced
+      expect(audioPort.playedWords).toContain('I am Sam.');
+      expect(audioPort.bloomFanfareCount).toBe(2);
+      expect(customStateMachine.getState().isCelebrationLocked).toBe(true);
+    });
+  });
+
+  describe('HeartWordCard: Orthographic Mapping & Irregular Heart Part', () => {
+    const cardDataThe: HeartWordCardData = {
+      id: 'test-heart-the',
+      lessonNumber: 5,
+      type: 'heart-word',
+      title: 'Heart Word: the',
+      word: 'the',
+      parts: [
+        { grapheme: 'th', isHeart: false, phoneme: 'th' },
+        { grapheme: 'e', isHeart: true, phoneme: 'uh' },
+      ],
+    };
+
+    it('renders oversized interactive parts (>= 64px) with regular styling and pulsing golden heart badge', () => {
+      const onComplete = vi.fn();
+      render(
+        <HeartWordCard
+          card={cardDataThe}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      expect(screen.getByTestId('heart-word-card')).toBeInTheDocument();
+      expect(screen.getByText('Heart Word: the')).toBeInTheDocument();
+
+      // Part 0 ('th'): regular
+      const part0 = screen.getByTestId('heart-part-0');
+      expect(part0).toBeInTheDocument();
+      expect(part0).toHaveTextContent('th');
+      expect(part0.classList.contains('touch-target-oversized')).toBe(true);
+      expect(part0.querySelector('[data-testid="golden-heart-badge"]')).toBeNull();
+
+      // Part 1 ('e'): irregular with golden heart badge
+      const part1 = screen.getByTestId('heart-part-1');
+      expect(part1).toBeInTheDocument();
+      expect(part1).toHaveTextContent('e');
+      expect(part1.classList.contains('touch-target-oversized')).toBe(true);
+      expect(part1.querySelector('[data-testid="golden-heart-badge"]')).not.toBeNull();
+    });
+
+    it('tapping regular grapheme voices regular phoneme; tapping golden heart voices heart phoneme with sparkle', () => {
+      const onComplete = vi.fn();
+      render(
+        <HeartWordCard
+          card={cardDataThe}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const part0 = screen.getByTestId('heart-part-0');
+      const part1 = screen.getByTestId('heart-part-1');
+
+      // Tap regular part 0 ('th')
+      fireEvent.click(part0);
+      expect(audioPort.playedPhonemes).toEqual(['th']);
+      expect(part0).toHaveAttribute('data-tapped', 'true');
+      expect(onComplete).not.toHaveBeenCalled();
+
+      // Tap irregular part 1 ('e' -> 'uh')
+      fireEvent.click(part1);
+      expect(audioPort.playedPhonemes).toEqual(['th', 'uh']);
+      expect(part1).toHaveAttribute('data-tapped', 'true');
+      expect(screen.getByTestId('heart-sparkle')).toBeInTheDocument();
+    });
+
+    it('once every part has been tapped, voices full word and completes card', () => {
+      const onComplete = vi.fn();
+      render(
+        <HeartWordCard
+          card={cardDataThe}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const part0 = screen.getByTestId('heart-part-0');
+      const part1 = screen.getByTestId('heart-part-1');
+
+      fireEvent.click(part0);
+      expect(onComplete).not.toHaveBeenCalled();
+      expect(audioPort.playedWords).toEqual([]);
+
+      fireEvent.click(part1);
+
+      // Both parts tapped! Speaks full word and completes
+      expect(audioPort.playedWords).toEqual(['the']);
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('completed-heart-word')).toBeInTheDocument();
+    });
+
+    it('supports single-part Heart Words (such as I) and re-tapping parts', () => {
+      const cardDataI: HeartWordCardData = {
+        id: 'test-heart-i',
+        lessonNumber: 3,
+        type: 'heart-word',
+        title: 'Heart Word: I',
+        word: 'I',
+        parts: [{ grapheme: 'I', isHeart: true, phoneme: 'ī' }],
+      };
+
+      const onComplete = vi.fn();
+      render(
+        <HeartWordCard
+          card={cardDataI}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const part0 = screen.getByTestId('heart-part-0');
+      expect(part0.querySelector('[data-testid="golden-heart-badge"]')).not.toBeNull();
+
+      fireEvent.click(part0);
+      expect(audioPort.playedPhonemes).toEqual(['ī']);
+      expect(audioPort.playedWords).toEqual(['I']);
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('DecodableStoryCard: Progressive Scene Reveal & Left-to-Right Directionality', () => {
+    const storyCardData: DecodableStoryCardData = {
+      id: 'test-story-sam-sat',
+      lessonNumber: 4,
+      type: 'decodable-story',
+      title: 'Story: Sam sat at a mat.',
+      sentence: 'Sam sat at a mat.',
+      words: ['Sam', 'sat', 'at', 'a', 'mat'],
+    };
+
+    it('renders interactive word pills and multi-element SVG garden illustration', () => {
+      const onComplete = vi.fn();
+      render(
+        <DecodableStoryCard
+          card={storyCardData}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      expect(screen.getByTestId('decodable-story-card')).toBeInTheDocument();
+      expect(screen.getByTestId('story-words-container')).toBeInTheDocument();
+      expect(screen.getByTestId('story-scene-illustration')).toBeInTheDocument();
+
+      // Renders all word pills
+      storyCardData.words.forEach((w, index) => {
+        const wordEl = screen.getByTestId(`story-word-${index}`);
+        expect(wordEl).toBeInTheDocument();
+        expect(wordEl).toHaveTextContent(w);
+        expect(wordEl).toHaveAttribute('data-read', 'false');
+      });
+
+      // Word 0 is initially pulsing as next expected
+      expect(screen.getByTestId('story-word-0')).toHaveAttribute('data-pulsing', 'true');
+
+      // Scene elements matching each word
+      storyCardData.words.forEach((_, index) => {
+        const sceneEl = screen.getByTestId(`scene-element-${index}`);
+        expect(sceneEl).toBeInTheDocument();
+        expect(sceneEl).toHaveAttribute('data-revealed', 'false');
+      });
+    });
+
+    it('enforces left-to-right reading: sequential taps voice words and progressively reveal scene elements', () => {
+      const onComplete = vi.fn();
+      render(
+        <DecodableStoryCard
+          card={storyCardData}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const word0 = screen.getByTestId('story-word-0'); // "Sam"
+      const word1 = screen.getByTestId('story-word-1'); // "sat"
+      const word2 = screen.getByTestId('story-word-2'); // "at"
+      const word3 = screen.getByTestId('story-word-3'); // "a"
+      const word4 = screen.getByTestId('story-word-4'); // "mat"
+
+      // 1. Tap word 0 ("Sam")
+      fireEvent.click(word0);
+      expect(audioPort.playedWords).toEqual(['Sam']);
+      expect(word0).toHaveAttribute('data-read', 'true');
+      expect(screen.getByTestId('scene-element-0')).toHaveAttribute('data-revealed', 'true');
+      expect(word1).toHaveAttribute('data-pulsing', 'true');
+      expect(onComplete).not.toHaveBeenCalled();
+
+      // 2. Tap word 1 ("sat")
+      fireEvent.click(word1);
+      expect(audioPort.playedWords).toEqual(['Sam', 'sat']);
+      expect(word1).toHaveAttribute('data-read', 'true');
+      expect(screen.getByTestId('scene-element-1')).toHaveAttribute('data-revealed', 'true');
+      expect(word2).toHaveAttribute('data-pulsing', 'true');
+      expect(onComplete).not.toHaveBeenCalled();
+
+      // 3. Tap word 2 ("at")
+      fireEvent.click(word2);
+      expect(audioPort.playedWords).toEqual(['Sam', 'sat', 'at']);
+      expect(word2).toHaveAttribute('data-read', 'true');
+      expect(screen.getByTestId('scene-element-2')).toHaveAttribute('data-revealed', 'true');
+      expect(word3).toHaveAttribute('data-pulsing', 'true');
+
+      // 4. Tap word 3 ("a")
+      fireEvent.click(word3);
+      expect(audioPort.playedWords).toEqual(['Sam', 'sat', 'at', 'a']);
+      expect(word3).toHaveAttribute('data-read', 'true');
+      expect(screen.getByTestId('scene-element-3')).toHaveAttribute('data-revealed', 'true');
+      expect(word4).toHaveAttribute('data-pulsing', 'true');
+
+      // 5. Tap final word 4 ("mat")
+      fireEvent.click(word4);
+      // Voices final word AND complete fluent sentence
+      expect(audioPort.playedWords).toEqual(['Sam', 'sat', 'at', 'a', 'mat', 'Sam sat at a mat.']);
+      expect(word4).toHaveAttribute('data-read', 'true');
+      expect(screen.getByTestId('scene-element-4')).toHaveAttribute('data-revealed', 'true');
+      expect(screen.getByTestId('completed-story-sentence')).toBeInTheDocument();
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('out-of-order tap does not mark word read, plays wobble hint, and pulses next unread word', () => {
+      const onComplete = vi.fn();
+      render(
+        <DecodableStoryCard
+          card={storyCardData}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const word0 = screen.getByTestId('story-word-0'); // "Sam"
+      const word1 = screen.getByTestId('story-word-1'); // "sat"
+      const word3 = screen.getByTestId('story-word-3'); // "a"
+
+      // Tap word 0
+      fireEvent.click(word0);
+      expect(audioPort.playedWords).toEqual(['Sam']);
+
+      // Child taps word 3 ("a") skipping expected word 1 ("sat")
+      fireEvent.click(word3);
+
+      // Does NOT mark word 3 read
+      expect(word3).toHaveAttribute('data-read', 'false');
+      expect(screen.getByTestId('scene-element-3')).toHaveAttribute('data-revealed', 'false');
+
+      // Played wobble hint
+      expect(audioPort.wobbleHintCount).toBe(1);
+      // Played words still only contains ['Sam']
+      expect(audioPort.playedWords).toEqual(['Sam']);
+
+      // Word 1 remains pulsing as next expected
+      expect(word1).toHaveAttribute('data-pulsing', 'true');
+      expect(onComplete).not.toHaveBeenCalled();
+    });
+
+    it('tapping an already-read word re-voices that word without changing reading progress', () => {
+      const onComplete = vi.fn();
+      render(
+        <DecodableStoryCard
+          card={storyCardData}
+          audioPort={audioPort}
+          onComplete={onComplete}
+          isCompleted={false}
+        />
+      );
+
+      const word0 = screen.getByTestId('story-word-0');
+      fireEvent.click(word0);
+      expect(audioPort.playedWords).toEqual(['Sam']);
+
+      // Re-tap word 0
+      fireEvent.click(word0);
+      expect(audioPort.playedWords).toEqual(['Sam', 'Sam']);
+      expect(audioPort.wobbleHintCount).toBe(0);
+      expect(onComplete).not.toHaveBeenCalled();
     });
   });
 });

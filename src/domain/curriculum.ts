@@ -2,6 +2,8 @@ import {
   ArticulatoryCue,
   BlendingWordCardData,
   GardenCard,
+  HeartWordCardData,
+  DecodableStoryCardData,
   LetterCardData,
   MouthState,
   PhonemeClassification,
@@ -119,6 +121,41 @@ export function createBlendingWordCard(
   };
 }
 
+export function createHeartWordCard(
+  lessonNumber: number,
+  word: string,
+  parts: { grapheme: string; isHeart: boolean; phoneme: string }[]
+): HeartWordCardData {
+  return {
+    id: `lesson-${lessonNumber}-heart-${word.toLowerCase().replace(/[^a-z]/g, '')}`,
+    lessonNumber,
+    type: 'heart-word',
+    title: `Heart Word: ${word}`,
+    word,
+    parts,
+  };
+}
+
+export function createDecodableStoryCard(
+  lessonNumber: number,
+  sentence: string,
+  words: string[]
+): DecodableStoryCardData {
+  const slug = sentence
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 24);
+  return {
+    id: `lesson-${lessonNumber}-story-${slug}`,
+    lessonNumber,
+    type: 'decodable-story',
+    title: `Story: ${sentence}`,
+    sentence,
+    words,
+  };
+}
+
 export const INITIAL_CURRICULUM_CARDS: GardenCard[] = [
   // Lesson 1: a /ă/ (Continuous — omits Blending Word cards)
   createLetterCard(1, 'a', 'ă', 'continuous'),
@@ -127,36 +164,51 @@ export const INITIAL_CURRICULUM_CARDS: GardenCard[] = [
   createLetterCard(2, 'm', 'm', 'continuous'),
   createBlendingWordCard(2, 'am', ['a', 'm'], '🌟'),
 
-  // Lesson 3: s /s/ (Continuous — blends Sam, am)
+  // Lesson 3: s /s/ (Continuous — blends Sam, am; Heart Word: I; Story: I am Sam.)
   createLetterCard(3, 's', 's', 'continuous'),
   createBlendingWordCard(3, 'Sam', ['S', 'a', 'm'], '👦'),
   createBlendingWordCard(3, 'am', ['a', 'm'], '🌟'),
+  createHeartWordCard(3, 'I', [{ grapheme: 'I', isHeart: true, phoneme: 'ī' }]),
+  createDecodableStoryCard(3, 'I am Sam.', ['I', 'am', 'Sam']),
 
-  // Lesson 4: t /t/ (Stop — blends at, sat, mat)
+  // Lesson 4: t /t/ (Stop — blends at, sat, mat; Heart Word: a; Story: Sam sat at a mat.)
   createLetterCard(4, 't', 't', 'stop'),
   createBlendingWordCard(4, 'at', ['a', 't'], '📍'),
   createBlendingWordCard(4, 'sat', ['s', 'a', 't'], '🪑'),
   createBlendingWordCard(4, 'mat', ['m', 'a', 't'], '🧶'),
+  createHeartWordCard(4, 'a', [{ grapheme: 'a', isHeart: true, phoneme: 'uh' }]),
+  createDecodableStoryCard(4, 'Sam sat at a mat.', ['Sam', 'sat', 'at', 'a', 'mat']),
 
-  // Lesson 5: VC/CVC Consolidation (a, m, s, t — omits Letter Card, multi-word blending)
+  // Lesson 5: VC/CVC Consolidation (a, m, s, t — Heart Word: the; Story: Sam sat at the mat.)
+  createHeartWordCard(5, 'the', [
+    { grapheme: 'th', isHeart: false, phoneme: 'th' },
+    { grapheme: 'e', isHeart: true, phoneme: 'uh' },
+  ]),
   createBlendingWordCard(5, 'at', ['a', 't'], '📍'),
   createBlendingWordCard(5, 'am', ['a', 'm'], '🌟'),
   createBlendingWordCard(5, 'sat', ['s', 'a', 't'], '🪑'),
   createBlendingWordCard(5, 'mat', ['m', 'a', 't'], '🧶'),
   createBlendingWordCard(5, 'Sam', ['S', 'a', 'm'], '👦'),
+  createDecodableStoryCard(5, 'Sam sat at the mat.', ['Sam', 'sat', 'at', 'the', 'mat']),
 
-  // Lesson 6: p /p/ (Stop — blends pat, tap, sap, map)
+  // Lesson 6: p /p/ (Stop — blends pat, tap, sap, map; Story: Pat sat at a map.)
   createLetterCard(6, 'p', 'p', 'stop'),
   createBlendingWordCard(6, 'pat', ['p', 'a', 't'], '👋'),
   createBlendingWordCard(6, 'tap', ['t', 'a', 'p'], '🚰'),
   createBlendingWordCard(6, 'sap', ['s', 'a', 'p'], '🍁'),
   createBlendingWordCard(6, 'map', ['m', 'a', 'p'], '🗺️'),
+  createDecodableStoryCard(6, 'Pat sat at a map.', ['Pat', 'sat', 'at', 'a', 'map']),
 
-  // Lesson 7: f /f/ (Continuous — blends fat)
+  // Lesson 7: f /f/ (Continuous — blends fat; Heart Word: to; Story: Sam sat at a fat mat.)
   createLetterCard(7, 'f', 'f', 'continuous'),
   createBlendingWordCard(7, 'fat', ['f', 'a', 't'], '🐱'),
+  createHeartWordCard(7, 'to', [
+    { grapheme: 't', isHeart: false, phoneme: 't' },
+    { grapheme: 'o', isHeart: true, phoneme: 'oo' },
+  ]),
+  createDecodableStoryCard(7, 'Sam sat at a fat mat.', ['Sam', 'sat', 'at', 'a', 'fat', 'mat']),
 
-  // Lesson 8: i /ĭ/ (Continuous — blends it, sit, pit, fit, sip, tip)
+  // Lesson 8: i /ĭ/ (Continuous — blends it, sit, pit, fit, sip, tip; Heart Word: is; Story: Sam is at the pit.)
   createLetterCard(8, 'i', 'ĭ', 'continuous'),
   createBlendingWordCard(8, 'it', ['i', 't'], '👉'),
   createBlendingWordCard(8, 'sit', ['s', 'i', 't'], '🪑'),
@@ -164,8 +216,13 @@ export const INITIAL_CURRICULUM_CARDS: GardenCard[] = [
   createBlendingWordCard(8, 'fit', ['f', 'i', 't'], '🧩'),
   createBlendingWordCard(8, 'sip', ['s', 'i', 'p'], '🥤'),
   createBlendingWordCard(8, 'tip', ['t', 'i', 'p'], '💡'),
+  createHeartWordCard(8, 'is', [
+    { grapheme: 'i', isHeart: false, phoneme: 'ĭ' },
+    { grapheme: 's', isHeart: true, phoneme: 'z' },
+  ]),
+  createDecodableStoryCard(8, 'Sam is at the pit.', ['Sam', 'is', 'at', 'the', 'pit']),
 
-  // Lesson 9: n /n/ (Continuous — blends in, pin, tin, fin, nap, pan, tan, man, fan)
+  // Lesson 9: n /n/ (Continuous — blends in, pin, tin, fin, nap, pan, tan, man, fan; Heart Word: said; Story: Pam sat in a tin pan.)
   createLetterCard(9, 'n', 'n', 'continuous'),
   createBlendingWordCard(9, 'in', ['i', 'n'], '📥'),
   createBlendingWordCard(9, 'pin', ['p', 'i', 'n'], '📌'),
@@ -176,8 +233,14 @@ export const INITIAL_CURRICULUM_CARDS: GardenCard[] = [
   createBlendingWordCard(9, 'tan', ['t', 'a', 'n'], '☀️'),
   createBlendingWordCard(9, 'man', ['m', 'a', 'n'], '👨'),
   createBlendingWordCard(9, 'fan', ['f', 'a', 'n'], '🪭'),
+  createHeartWordCard(9, 'said', [
+    { grapheme: 's', isHeart: false, phoneme: 's' },
+    { grapheme: 'ai', isHeart: true, phoneme: 'ĕ' },
+    { grapheme: 'd', isHeart: false, phoneme: 'd' },
+  ]),
+  createDecodableStoryCard(9, 'Pam sat in a tin pan.', ['Pam', 'sat', 'in', 'a', 'tin', 'pan']),
 
-  // Lesson 10: CVC Consolidation (a, i with m, s, t, p, f, n — omits Letter Card, multi-word blending)
+  // Lesson 10: CVC Consolidation (a, i with m, s, t, p, f, n — omits Letter Card; Story: I said it is a fan.)
   createBlendingWordCard(10, 'fit', ['f', 'i', 't'], '🧩'),
   createBlendingWordCard(10, 'map', ['m', 'a', 'p'], '🗺️'),
   createBlendingWordCard(10, 'pin', ['p', 'i', 'n'], '📌'),
@@ -188,4 +251,5 @@ export const INITIAL_CURRICULUM_CARDS: GardenCard[] = [
   createBlendingWordCard(10, 'tin', ['t', 'i', 'n'], '🥫'),
   createBlendingWordCard(10, 'mat', ['m', 'a', 't'], '🧶'),
   createBlendingWordCard(10, 'pat', ['p', 'a', 't'], '👋'),
+  createDecodableStoryCard(10, 'I said it is a fan.', ['I', 'said', 'it', 'is', 'a', 'fan']),
 ];

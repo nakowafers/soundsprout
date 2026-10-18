@@ -165,6 +165,78 @@ describe('Seam 1 — Pure UFLI Curriculum & Garden State Machine Seam', () => {
       );
       expect(getWordsForLesson(10).length).toBeGreaterThanOrEqual(5);
     });
+
+    it('introduces high-frequency Heart Words across Lessons 1–10 (the, I, a, is, said, to) with irregular heart parts', () => {
+      const heartWordCards = INITIAL_CURRICULUM_CARDS.filter(
+        (c) => c.type === 'heart-word'
+      ) as any[];
+
+      const words = heartWordCards.map((c) => c.word.toLowerCase());
+      expect(words).toContain('the');
+      expect(words).toContain('i');
+      expect(words).toContain('a');
+      expect(words).toContain('is');
+      expect(words).toContain('said');
+      expect(words).toContain('to');
+
+      for (const card of heartWordCards) {
+        // Every Heart Word must have at least one irregular heart part
+        const hasHeartPart = card.parts.some((p: any) => p.isHeart === true);
+        expect(hasHeartPart).toBe(true);
+
+        // Every part must have a non-empty grapheme and phoneme
+        for (const p of card.parts) {
+          expect(p.grapheme.length).toBeGreaterThan(0);
+          expect(p.phoneme.length).toBeGreaterThan(0);
+        }
+      }
+    });
+
+    it('ensures every word in every Decodable Story across Lessons 1–10 is strictly 100% decodable or a previously/currently introduced Heart Word', () => {
+      const cumulativeGraphemes = new Set<string>();
+      const cumulativeHeartWords = new Set<string>();
+
+      const storyCards = INITIAL_CURRICULUM_CARDS.filter(
+        (c) => c.type === 'decodable-story'
+      ) as any[];
+      expect(storyCards.length).toBeGreaterThanOrEqual(5);
+
+      for (let lesson = 1; lesson <= 10; lesson++) {
+        const lessonCards = INITIAL_CURRICULUM_CARDS.filter((c) => c.lessonNumber === lesson);
+
+        // Accumulate newly introduced letters
+        for (const card of lessonCards) {
+          if (card.type === 'letter') {
+            cumulativeGraphemes.add((card as any).grapheme.toLowerCase());
+          }
+          if (card.type === 'heart-word') {
+            cumulativeHeartWords.add((card as any).word.toLowerCase());
+          }
+        }
+
+        // Validate any Decodable Story in this lesson
+        const lessonStoryCards = lessonCards.filter((c) => c.type === 'decodable-story');
+        for (const sCard of lessonStoryCards) {
+          const card = sCard as any;
+          expect(card.words.length).toBeGreaterThan(0);
+
+          for (const rawWord of card.words) {
+            const cleanWord = rawWord.toLowerCase().replace(/[^a-z]/g, '');
+            const isHeartWord = cumulativeHeartWords.has(cleanWord);
+
+            if (!isHeartWord) {
+              // Every character in the word must be a taught grapheme
+              for (const ch of cleanWord) {
+                expect(
+                  cumulativeGraphemes.has(ch),
+                  `Untaught letter '${ch}' found in story word '${rawWord}' (Lesson ${lesson}) with taught [${Array.from(cumulativeGraphemes).join(',')}]`
+                ).toBe(true);
+              }
+            }
+          }
+        }
+      }
+    });
   });
 
   describe('Garden Vine & Vine Frontier State Machine Invariants', () => {
